@@ -14,56 +14,56 @@
   'use strict';
 
   /* ── State ─────────────────────────────────────────────────────────── */
-  let allStocks      = [];          // Full loaded universe
+  let allStocks = [];          // Full loaded universe
   let filteredStocks = [];          // Currently displayed subset
-  let activeSymbol   = null;        // Symbol shown in chart
-  let activeRow      = null;        // Active TR element
-  let sortCol        = 'change_pct';
-  let sortDir        = -1;          // -1 = desc, 1 = asc
-  let currentRange   = '1y';
+  let activeSymbol = null;        // Symbol shown in chart
+  let activeRow = null;        // Active TR element
+  let sortCol = 'change_pct';
+  let sortDir = -1;          // -1 = desc, 1 = asc
+  let currentRange = '1y';
   let currentInterval = '1d';
 
   // Chart instances
-  let priceChart     = null;
-  let volumeChart    = null;
-  let candleSeries   = null;
-  let ema10Series    = null;
-  let ema20Series    = null;
-  let ema50Series    = null;
-  let ema200Series   = null;
-  let volSeries      = null;
-  let volMaSeries    = null;
+  let priceChart = null;
+  let volumeChart = null;
+  let candleSeries = null;
+  let ema10Series = null;
+  let ema20Series = null;
+  let ema50Series = null;
+  let ema200Series = null;
+  let volSeries = null;
+  let volMaSeries = null;
 
   // Refresh polling
   let refreshPollTimer = null;
 
   // Drawing tools state
-  let activeTool   = 'pointer';  // pointer | trendline | hline | vline | rectangle | fibonacci
+  let activeTool = 'pointer';  // pointer | trendline | hline | vline | rectangle | fibonacci
   let pendingPoint = null;        // first click anchor for 2-point tools
-  let allDrawings  = [];          // array of attached primitives
-  let previewPrim  = null;        // live-preview primitive (always attached)
+  let allDrawings = [];          // array of attached primitives
+  let previewPrim = null;        // live-preview primitive (always attached)
 
   /* ── DOM refs ──────────────────────────────────────────────────────── */
   const $ = id => document.getElementById(id);
-  const filterSelect     = $('filter-select');
-  const filterDesc       = $('filter-desc');
-  const stockCountEl     = $('stock-count');
-  const stockTbody       = $('stock-tbody');
-  const stockEmpty       = $('stock-empty');
-  const lastUpdatedText  = $('last-updated-text');
-  const chartLoading     = $('chart-loading');
+  const filterSelect = $('filter-select');
+  const filterDesc = $('filter-desc');
+  const stockCountEl = $('stock-count');
+  const stockTbody = $('stock-tbody');
+  const stockEmpty = $('stock-empty');
+  const lastUpdatedText = $('last-updated-text');
+  const chartLoading = $('chart-loading');
   const chartPlaceholder = $('chart-placeholder');
-  const chartSymName     = $('chart-sym-name');
-  const chartPrice       = $('chart-price');
-  const chartChange      = $('chart-change');
-  const refreshBtn       = $('refresh-btn');
-  const refreshModal     = $('refresh-modal');
-  const refreshModalMsg  = $('refresh-modal-msg');
-  const refreshLog       = $('refresh-log');
+  const chartSymName = $('chart-sym-name');
+  const chartPrice = $('chart-price');
+  const chartChange = $('chart-change');
+  const refreshBtn = $('refresh-btn');
+  const refreshModal = $('refresh-modal');
+  const refreshModalMsg = $('refresh-modal-msg');
+  const refreshLog = $('refresh-log');
   const refreshModalClose = $('refresh-modal-close');
-  const toast            = $('toast');
-  const toastMsg         = $('toast-msg');
-  const toastIcon        = $('toast-icon');
+  const toast = $('toast');
+  const toastMsg = $('toast-msg');
+  const toastIcon = $('toast-icon');
 
   /* ═══════════════════════════════════════════════════════════════════
      FILTER DEFINITIONS
@@ -72,25 +72,25 @@
     uptrend: {
       label: 'Price > ₹30 · EMA(20) > EMA(50) > EMA(200) · MCap > ₹800 Cr',
       fn: s =>
-        s.price        > 30 &&
-        s.ema20        !== null && s.ema50 !== null && s.ema200 !== null &&
-        s.ema20        > s.ema50 &&
-        s.ema50        > s.ema200 &&
+        s.price > 30 &&
+        s.ema20 !== null && s.ema50 !== null && s.ema200 !== null &&
+        s.ema20 > s.ema50 &&
+        s.ema50 > s.ema200 &&
         (s.marketcap_cr === null || s.marketcap_cr > 800),
     },
     perf3m: {
       label: 'Price > ₹30 · MCap > ₹800 Cr · 3M Return > 30%',
       fn: s =>
-        s.price        > 30 &&
-        s.perf_3m      !== null && s.perf_3m > 30 &&
+        s.price > 30 &&
+        s.perf_3m !== null && s.perf_3m > 30 &&
         (s.marketcap_cr === null || s.marketcap_cr > 800),
     },
     volspike: {
       label: 'Price > ₹30 · Daily Change > 3% · Relative Volume > 3×',
       fn: s =>
-        s.price            > 30 &&
-        s.change_pct       > 3 &&
-        s.relative_volume  !== null && s.relative_volume > 3,
+        s.price > 30 &&
+        s.change_pct > 3 &&
+        s.relative_volume !== null && s.relative_volume > 3,
     },
   };
 
@@ -110,8 +110,8 @@
         if (data.last_updated) {
           const d = new Date(data.last_updated);
           lastUpdatedText.textContent =
-            `Updated: ${d.toLocaleDateString('en-IN', { day:'2-digit', month:'short' })} ` +
-            `${d.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' })}  ·  ` +
+            `Updated: ${d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} ` +
+            `${d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}  ·  ` +
             `${data.total} stocks`;
         } else {
           lastUpdatedText.textContent = `${allStocks.length} stocks loaded`;
@@ -144,7 +144,7 @@
   ═══════════════════════════════════════════════════════════════════ */
   function applyFilter() {
     const filterKey = filterSelect.value;
-    const filter    = FILTERS[filterKey];
+    const filter = FILTERS[filterKey];
     filterDesc.textContent = filter.label;
 
     filteredStocks = allStocks.filter(filter.fn);
@@ -167,12 +167,12 @@
   /* ═══════════════════════════════════════════════════════════════════
      TABLE RENDERING
   ═══════════════════════════════════════════════════════════════════ */
-  function fmtPrice(p)  { return p != null ? `₹${Number(p).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}` : '—'; }
+  function fmtPrice(p) { return p != null ? `₹${Number(p).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'; }
   function fmtChange(c) { return c != null ? `${c >= 0 ? '+' : ''}${Number(c).toFixed(2)}%` : '—'; }
   function fmtMC(mc) {
     if (mc == null) return '—';
     if (mc >= 100000) return `${(mc / 100000).toFixed(1)}L`;   // Lakh crore
-    if (mc >= 1000)   return `${(mc / 1000).toFixed(1)}K`;     // Thousand crore
+    if (mc >= 1000) return `${(mc / 1000).toFixed(1)}K`;     // Thousand crore
     return `${Math.round(mc)}`;
   }
 
@@ -201,12 +201,21 @@
     // Build rows
     const rows = filteredStocks.map((s, idx) => {
       const chgClass = s.change_pct > 0 ? 'up' : (s.change_pct < 0 ? 'down' : 'flat');
-      const arrow    = s.change_pct > 0 ? '▲' : (s.change_pct < 0 ? '▼' : '—');
+      const arrow = s.change_pct > 0 ? '▲' : (s.change_pct < 0 ? '▼' : '—');
+      const inWL = isSymbolWatchlisted(s.symbol);
+      const starClass = inWL ? 'wl-star-btn watchlisted' : 'wl-star-btn';
+      const starTitle = inWL ? 'In watchlist — click to manage' : 'Add to watchlist';
       return `
         <tr class="stock-row" data-symbol="${escHtml(s.symbol)}" tabindex="0"
             role="button" aria-label="View chart for ${escHtml(s.symbol)}">
           <td>
-            <div class="sym-name">${escHtml(s.symbol)}</div>
+            <div class="sym-cell-inner">
+              <div class="sym-name">${escHtml(s.symbol)}</div>
+              <button class="${starClass}" data-symbol="${escHtml(s.symbol)}"
+                      title="${starTitle}" aria-label="${starTitle}">
+                ${inWL ? '★' : '☆'}
+              </button>
+            </div>
           </td>
           <td class="price-cell">${fmtPrice(s.price)}</td>
           <td>
@@ -220,23 +229,165 @@
 
     // Restore active row highlight
     if (activeSymbol) {
-      const newActive = stockTbody.querySelector(`[data-symbol="${activeSymbol}"]`);
+      const newActive = stockTbody.querySelector(`tr[data-symbol="${activeSymbol}"]`);
       if (newActive) {
         newActive.classList.add('active');
         activeRow = newActive;
       }
     }
-
-    // Attach click + keyboard events via delegation
-    stockTbody.onclick = null;
-    stockTbody.addEventListener('click', handleRowClick);
-    stockTbody.addEventListener('keydown', handleRowKeydown);
   }
 
   function handleRowClick(e) {
+    if (e.target.closest('.wl-star-btn')) return;
     const row = e.target.closest('.stock-row');
     if (!row) return;
     selectRow(row);
+  }
+
+  /** Set up screener star-button delegation ONCE (called from init) */
+  function initScreenerStarBtn() {
+    // Row click — use onclick so it's always a single handler
+    stockTbody.onclick = handleRowClick;
+    stockTbody.addEventListener('keydown', handleRowKeydown);
+
+    // Star-button delegation — registered once, never accumulates
+    stockTbody.addEventListener('click', e => {
+      const starBtn = e.target.closest('.wl-star-btn');
+      if (!starBtn) return;
+      e.stopPropagation();
+      showWatchlistPicker(starBtn, starBtn.dataset.symbol);
+    });
+  }
+
+  /* ── Watchlist picker (screener → watchlist) ──────────────────────── */
+
+  /** Returns true if symbol is in ANY section of the active watchlist */
+  function isSymbolWatchlisted(symbol) {
+    const list = WatchlistManager.getActiveList();
+    if (!list) return false;
+    return list.sections.some(sec => sec.symbols.includes(symbol));
+  }
+
+  /** Build/reuse the floating section-picker popup */
+  let _pickerEl = null;
+  let _pickerSymbol = null;
+  let _pickerCloseHandler = null;
+
+  function showWatchlistPicker(triggerBtn, symbol) {
+    // Close any existing picker
+    hideWatchlistPicker();
+
+    _pickerSymbol = symbol;
+    const list = WatchlistManager.getActiveList();
+    const listName = WatchlistManager.getActiveListName();
+
+    // Build popup
+    const picker = document.createElement('div');
+    picker.id = 'wl-picker-popup';
+    picker.className = 'wl-picker-popup';
+
+    // Header
+    const header = document.createElement('div');
+    header.className = 'wl-picker-header';
+    header.innerHTML = `
+      <span class="wl-picker-title">Add <strong>${escHtml(symbol)}</strong> to…</span>
+      <span class="wl-picker-list-name">${escHtml(listName)}</span>
+    `;
+    picker.appendChild(header);
+
+    // Sections list
+    if (!list || list.sections.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'wl-picker-empty';
+      empty.textContent = 'No sections yet — go to Watchlist tab to add one.';
+      picker.appendChild(empty);
+    } else {
+      list.sections.forEach(sec => {
+        const already = sec.symbols.includes(symbol);
+        const item = document.createElement('button');
+        item.className = 'wl-picker-item' + (already ? ' in-list' : '');
+        item.innerHTML = `
+          <span class="wl-picker-item-icon">${already ? '★' : '+'}</span>
+          <span class="wl-picker-item-name">${escHtml(sec.name)}</span>
+          <span class="wl-picker-item-count">${sec.symbols.length}</span>
+          ${already ? '<span class="wl-picker-item-badge">Added</span>' : ''}
+        `;
+        item.addEventListener('click', e => {
+          e.stopPropagation();
+          if (already) {
+            // Remove it
+            WatchlistManager.removeSymbol(listName, sec.id, symbol);
+            showToast('✕', `${symbol} removed from "${sec.name}"`, 'success');
+          } else {
+            WatchlistManager.addSymbol(listName, sec.id, symbol);
+            showToast('★', `${symbol} added to "${sec.name}"`, 'success');
+          }
+          // Refresh picker and star state in table
+          hideWatchlistPicker();
+          _refreshStarBtn(symbol);
+        });
+        picker.appendChild(item);
+      });
+    }
+
+    // Footer — quick-switch to watchlist tab
+    const footer = document.createElement('div');
+    footer.className = 'wl-picker-footer';
+    footer.innerHTML = `<button class="wl-picker-goto">Open Watchlist tab →</button>`;
+    footer.querySelector('.wl-picker-goto').addEventListener('click', () => {
+      hideWatchlistPicker();
+      // Switch to watchlist tab
+      document.getElementById('tab-watchlist')?.click();
+    });
+    picker.appendChild(footer);
+
+    document.body.appendChild(picker);
+    _pickerEl = picker;
+
+    // Position below/above the trigger button
+    const rect = triggerBtn.getBoundingClientRect();
+    const popH = 260;
+    const popW = 220;
+    let top = rect.bottom + 6;
+    let left = rect.left - popW + rect.width;
+    if (top + popH > window.innerHeight) top = rect.top - popH - 6;
+    if (left < 4) left = 4;
+    if (left + popW > window.innerWidth) left = window.innerWidth - popW - 4;
+    picker.style.top = top + 'px';
+    picker.style.left = left + 'px';
+
+    // Close on outside click
+    _pickerCloseHandler = e => {
+      if (!picker.contains(e.target) && !triggerBtn.contains(e.target)) hideWatchlistPicker();
+    };
+    setTimeout(() => document.addEventListener('click', _pickerCloseHandler), 0);
+  }
+
+  function hideWatchlistPicker() {
+    if (_pickerEl) { _pickerEl.remove(); _pickerEl = null; }
+    if (_pickerCloseHandler) { document.removeEventListener('click', _pickerCloseHandler); _pickerCloseHandler = null; }
+    _pickerSymbol = null;
+  }
+
+  /** Re-render just the star button for one symbol */
+  function _refreshStarBtn(symbol) {
+    // Target only <tr> rows, not the <button> which also carries data-symbol
+    stockTbody.querySelectorAll(`tr[data-symbol="${symbol}"]`).forEach(row => {
+      const btn = row.querySelector('.wl-star-btn');
+      if (!btn) return;
+      const inWL = isSymbolWatchlisted(symbol);
+      btn.classList.toggle('watchlisted', inWL);
+      btn.textContent = inWL ? '\u2605' : '\u2606';
+      btn.title = inWL ? 'In watchlist \u2014 click to manage' : 'Add to watchlist';
+      btn.setAttribute('aria-label', btn.title);
+    });
+  }
+
+  /** Re-render ALL star buttons (e.g. after switching back to Screener tab) */
+  function _refreshAllStarBtns() {
+    stockTbody.querySelectorAll('tr[data-symbol]').forEach(row => {
+      _refreshStarBtn(row.dataset.symbol);
+    });
   }
 
   function handleRowKeydown(e) {
@@ -247,7 +398,7 @@
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
       const rows = [...stockTbody.querySelectorAll('.stock-row')];
-      const cur  = rows.indexOf(document.activeElement.closest('.stock-row'));
+      const cur = rows.indexOf(document.activeElement.closest('.stock-row'));
       const next = e.key === 'ArrowDown' ? cur + 1 : cur - 1;
       if (rows[next]) { rows[next].focus(); selectRow(rows[next]); }
     }
@@ -256,7 +407,7 @@
   function selectRow(row) {
     if (activeRow) activeRow.classList.remove('active');
     row.classList.add('active');
-    activeRow  = row;
+    activeRow = row;
     activeSymbol = row.dataset.symbol;
     row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     loadChart(activeSymbol, currentRange, currentInterval);
@@ -284,14 +435,14 @@
   ═══════════════════════════════════════════════════════════════════ */
   const CHART_OPTS = {
     layout: {
-      background:   { type: 'solid', color: '#050c1a' },
-      textColor:    '#94a3b8',
-      fontFamily:   "'JetBrains Mono', 'Inter', monospace",
-      fontSize:      11,
+      background: { type: 'solid', color: '#050c1a' },
+      textColor: '#94a3b8',
+      fontFamily: "'JetBrains Mono', 'Inter', monospace",
+      fontSize: 11,
     },
     grid: {
-      vertLines:  { color: 'rgba(255,255,255,0.04)' },
-      horzLines:  { color: 'rgba(255,255,255,0.04)' },
+      vertLines: { color: 'rgba(255,255,255,0.04)' },
+      horzLines: { color: 'rgba(255,255,255,0.04)' },
     },
     crosshair: {
       mode: 1,   // Normal mode
@@ -303,44 +454,44 @@
       scaleMargins: { top: 0.1, bottom: 0.05 },
     },
     timeScale: {
-      borderColor:    'rgba(255,255,255,0.07)',
-      timeVisible:    true,
+      borderColor: 'rgba(255,255,255,0.07)',
+      timeVisible: true,
       secondsVisible: false,
-      rightOffset:    5,
+      rightOffset: 5,
     },
     handleScroll: true,
-    handleScale:  true,
+    handleScale: true,
   };
 
   function initCharts() {
-    const priceEl  = $('price-chart');
+    const priceEl = $('price-chart');
     const volumeEl = $('volume-chart');
 
     // Destroy old instances if any
-    if (priceChart)  { priceChart.remove();  priceChart  = null; }
+    if (priceChart) { priceChart.remove(); priceChart = null; }
     if (volumeChart) { volumeChart.remove(); volumeChart = null; }
 
     // Price chart
     priceChart = LightweightCharts.createChart(priceEl, {
       ...CHART_OPTS,
-      width:  priceEl.clientWidth,
+      width: priceEl.clientWidth,
       height: priceEl.clientHeight,
     });
 
     // Candlestick series
     candleSeries = priceChart.addSeries(LightweightCharts.CandlestickSeries, {
-      upColor:          '#10b981',
-      downColor:        '#ef4444',
-      borderUpColor:    '#10b981',
-      borderDownColor:  '#ef4444',
-      wickUpColor:      '#10b981',
-      wickDownColor:    '#ef4444',
+      upColor: '#10b981',
+      downColor: '#ef4444',
+      borderUpColor: '#10b981',
+      borderDownColor: '#ef4444',
+      wickUpColor: '#10b981',
+      wickDownColor: '#ef4444',
     });
 
     // EMA 10 – orange
     ema10Series = priceChart.addSeries(LightweightCharts.LineSeries, {
-      color:       '#f97316',
-      lineWidth:   1,
+      color: '#f97316',
+      lineWidth: 1,
       priceLineVisible: false,
       lastValueVisible: false,
       crosshairMarkerVisible: false,
@@ -348,8 +499,8 @@
 
     // EMA 20 – cyan
     ema20Series = priceChart.addSeries(LightweightCharts.LineSeries, {
-      color:       '#22d3ee',
-      lineWidth:   1.5,
+      color: '#22d3ee',
+      lineWidth: 1.5,
       priceLineVisible: false,
       lastValueVisible: false,
       crosshairMarkerVisible: false,
@@ -357,8 +508,8 @@
 
     // EMA 50 – purple
     ema50Series = priceChart.addSeries(LightweightCharts.LineSeries, {
-      color:       '#a78bfa',
-      lineWidth:   2,
+      color: '#a78bfa',
+      lineWidth: 2,
       priceLineVisible: false,
       lastValueVisible: false,
       crosshairMarkerVisible: false,
@@ -366,8 +517,8 @@
 
     // EMA 200 – amber
     ema200Series = priceChart.addSeries(LightweightCharts.LineSeries, {
-      color:       '#f59e0b',
-      lineWidth:   2.5,
+      color: '#f59e0b',
+      lineWidth: 2.5,
       priceLineVisible: false,
       lastValueVisible: false,
       crosshairMarkerVisible: false,
@@ -376,7 +527,7 @@
     // Volume chart (separate)
     volumeChart = LightweightCharts.createChart(volumeEl, {
       ...CHART_OPTS,
-      width:  volumeEl.clientWidth,
+      width: volumeEl.clientWidth,
       height: volumeEl.clientHeight,
       rightPriceScale: {
         borderColor: 'rgba(255,255,255,0.07)',
@@ -386,15 +537,15 @@
 
     // Volume histogram
     volSeries = volumeChart.addSeries(LightweightCharts.HistogramSeries, {
-      color:          '#1e3a5f',
-      priceFormat:    { type: 'volume' },
-      priceScaleId:   'right',
+      color: '#1e3a5f',
+      priceFormat: { type: 'volume' },
+      priceScaleId: 'right',
     });
 
     // Volume MA-50 line
     volMaSeries = volumeChart.addSeries(LightweightCharts.LineSeries, {
-      color:       '#38bdf8',
-      lineWidth:   2,
+      color: '#38bdf8',
+      lineWidth: 2,
       priceScaleId: 'right',
       priceLineVisible: false,
       lastValueVisible: false,
@@ -450,9 +601,9 @@
         if (previewPrim) previewPrim.clear();
         $('chart-body').classList.remove('pending-point');
         document.querySelector('.draw-btn.active')?.classList.remove('pulsing');
-        if (activeTool === 'trendline')  { addDrawing(new TrendPrim(p1, pt));  showToast('↗', 'Trend line drawn', 'success'); }
-        if (activeTool === 'rectangle')  { addDrawing(new RectPrim(p1, pt));   showToast('▭', 'Rectangle drawn', 'success'); }
-        if (activeTool === 'fibonacci')  { addDrawing(new FibPrim(p1, pt));    showToast('≋', 'Fibonacci drawn', 'success'); }
+        if (activeTool === 'trendline') { addDrawing(new TrendPrim(p1, pt)); showToast('↗', 'Trend line drawn', 'success'); }
+        if (activeTool === 'rectangle') { addDrawing(new RectPrim(p1, pt)); showToast('▭', 'Rectangle drawn', 'success'); }
+        if (activeTool === 'fibonacci') { addDrawing(new FibPrim(p1, pt)); showToast('≋', 'Fibonacci drawn', 'success'); }
       }
     });
 
@@ -473,7 +624,7 @@
 
     // Resize observer
     const ro = new ResizeObserver(() => {
-      if (priceChart)  priceChart.resize(priceEl.clientWidth,  priceEl.clientHeight);
+      if (priceChart) priceChart.resize(priceEl.clientWidth, priceEl.clientHeight);
       if (volumeChart) volumeChart.resize(volumeEl.clientWidth, volumeEl.clientHeight);
     });
     ro.observe(priceEl);
@@ -493,7 +644,7 @@
     let ema = null;
     for (const c of closes) {
       if (ema === null) { ema = c; }
-      else              { ema = c * k + ema * (1 - k); }
+      else { ema = c * k + ema * (1 - k); }
       result.push(ema);
     }
     return result;
@@ -518,7 +669,7 @@
       this._chart = chart; this._series = series; this._req = requestUpdate;
     }
     detached() { this._chart = null; this._series = null; this._req = null; }
-    updateAllViews() {}
+    updateAllViews() { }
     _refresh() { if (this._req) this._req(); }
     _makeView(drawFn, zOrder = 'normal') {
       const renderer = { draw: t => drawFn(t) };
@@ -625,7 +776,7 @@
         const y2 = this._series.priceToCoordinate(this._p2.price);
         if (x1 === null || y1 === null || x2 === null || y2 === null) return;
         c.save();
-        c.fillStyle   = 'rgba(34,211,238,0.07)';
+        c.fillStyle = 'rgba(34,211,238,0.07)';
         c.strokeStyle = '#22d3ee'; c.lineWidth = 1.5;
         c.fillRect(x1, y1, x2 - x1, y2 - y1);
         c.strokeRect(x1, y1, x2 - x1, y2 - y1);
@@ -636,13 +787,13 @@
 
   // ── Fibonacci retracement ─────────────────────────────────────────────
   const FIB_LEVELS = [
-    { r: 0,     color: '#ef4444', lbl: '0%'    },
+    { r: 0, color: '#ef4444', lbl: '0%' },
     { r: 0.236, color: '#f97316', lbl: '23.6%' },
     { r: 0.382, color: '#f59e0b', lbl: '38.2%' },
-    { r: 0.5,   color: '#10b981', lbl: '50%'   },
+    { r: 0.5, color: '#10b981', lbl: '50%' },
     { r: 0.618, color: '#3b82f6', lbl: '61.8%' },
     { r: 0.786, color: '#8b5cf6', lbl: '78.6%' },
-    { r: 1.0,   color: '#ef4444', lbl: '100%'  },
+    { r: 1.0, color: '#ef4444', lbl: '100%' },
   ];
 
   class FibPrim extends DrawBase {
@@ -654,13 +805,13 @@
     _draw(target) {
       if (!this._chart || !this._series) return;
       target.useMediaCoordinateSpace(({ context: c, mediaSize: ms }) => {
-        const ts   = this._chart.timeScale();
-        const x1   = ts.timeToCoordinate(this._p1.time);
-        const x2   = ts.timeToCoordinate(this._p2.time);
+        const ts = this._chart.timeScale();
+        const x1 = ts.timeToCoordinate(this._p1.time);
+        const x2 = ts.timeToCoordinate(this._p2.time);
         if (x1 === null || x2 === null) return;
-        const xL   = Math.min(x1, x2);
+        const xL = Math.min(x1, x2);
         const high = Math.max(this._p1.price, this._p2.price);
-        const low  = Math.min(this._p1.price, this._p2.price);
+        const low = Math.min(this._p1.price, this._p2.price);
         c.save();
         c.font = '10px JetBrains Mono, monospace';
         let prevY = null;
@@ -701,11 +852,11 @@
       return (this._tool && this._p1 && this._p2) ? this._views : this._empty;
     }
     set(tool, p1, p2) { this._tool = tool; this._p1 = p1; this._p2 = p2; this._refresh(); }
-    clear()           { this._tool = null; this._p1 = null; this._p2 = null; this._refresh(); }
+    clear() { this._tool = null; this._p1 = null; this._p2 = null; this._refresh(); }
     _draw(target) {
       if (!this._chart || !this._series || !this._p1 || !this._p2) return;
       target.useMediaCoordinateSpace(({ context: c, mediaSize: ms }) => {
-        const ts  = this._chart.timeScale();
+        const ts = this._chart.timeScale();
         const ser = this._series;
         c.save(); c.globalAlpha = 0.6; c.setLineDash([5, 4]);
         if (this._tool === 'trendline') {
@@ -737,7 +888,7 @@
           if (x1 !== null && x2 !== null) {
             const xL = Math.min(x1, x2);
             const high = Math.max(this._p1.price, this._p2.price);
-            const low  = Math.min(this._p1.price, this._p2.price);
+            const low = Math.min(this._p1.price, this._p2.price);
             FIB_LEVELS.forEach(({ r, color }) => {
               const y = ser.priceToCoordinate(high - r * (high - low));
               if (y === null) return;
@@ -774,7 +925,7 @@
 
   // ── Tool activation ──────────────────────────────────────────────────
   function setActiveTool(tool) {
-    activeTool   = tool;
+    activeTool = tool;
     pendingPoint = null;
     if (previewPrim) previewPrim.clear();
     const chartBody = $('chart-body');
@@ -793,9 +944,9 @@
     document.querySelectorAll('.draw-btn[data-tool]').forEach(btn => {
       btn.addEventListener('click', () => setActiveTool(btn.dataset.tool));
     });
-    const undoBtn  = $('undo-drawing-btn');
+    const undoBtn = $('undo-drawing-btn');
     const clearBtn = $('clear-drawings-btn');
-    if (undoBtn)  undoBtn.addEventListener('click', undoLastDrawing);
+    if (undoBtn) undoBtn.addEventListener('click', undoLastDrawing);
     if (clearBtn) clearBtn.addEventListener('click', clearAllDrawings);
   }
 
@@ -809,9 +960,9 @@
     chartLoading.classList.add('visible');
     chartPlaceholder.style.display = 'none';
     chartSymName.textContent = symbol;
-    chartPrice.textContent   = '—';
-    chartChange.textContent  = '—';
-    chartChange.className    = '';
+    chartPrice.textContent = '—';
+    chartChange.textContent = '—';
+    chartChange.className = '';
 
     // Make sure charts are initialized
     if (!priceChart) initCharts();
@@ -839,15 +990,15 @@
       if (!result) throw new Error('No chart data returned from Yahoo Finance');
 
       const timestamps = result.timestamp;
-      const quote      = result.indicators?.quote?.[0];
-      const adjClose   = result.indicators?.adjclose?.[0]?.adjclose || quote?.close;
+      const quote = result.indicators?.quote?.[0];
+      const adjClose = result.indicators?.adjclose?.[0]?.adjclose || quote?.close;
 
       if (!timestamps || !quote) throw new Error('Malformed chart data');
 
       // Build OHLCV arrays aligned by timestamp
       const candles = [];
       const volumes = [];
-      const closes  = [];
+      const closes = [];
 
       for (let i = 0; i < timestamps.length; i++) {
         const o = quote.open[i];
@@ -866,14 +1017,14 @@
       if (candles.length === 0) throw new Error('No valid OHLCV data');
 
       // Calculate EMAs
-      const emaValues10  = calcEMA(closes, 10);
-      const emaValues20  = calcEMA(closes, 20);
-      const emaValues50  = calcEMA(closes, 50);
+      const emaValues10 = calcEMA(closes, 10);
+      const emaValues20 = calcEMA(closes, 20);
+      const emaValues50 = calcEMA(closes, 50);
       const emaValues200 = calcEMA(closes, 200);
 
       // Volume MA-50
-      const rawVols  = volumes.map(v => v.value);
-      const volMa50  = calcSMA(rawVols, 50);
+      const rawVols = volumes.map(v => v.value);
+      const volMa50 = calcSMA(rawVols, 50);
 
       // Map EMAs to time series format
       const toTimeSeries = (timeArr, vals) =>
@@ -898,15 +1049,15 @@
       volumeChart.timeScale().fitContent();
 
       // Update toolbar
-      const last   = candles[candles.length - 1];
-      const prev   = candles[candles.length - 2];
+      const last = candles[candles.length - 1];
+      const prev = candles[candles.length - 2];
       const change = prev ? ((last.close - prev.close) / prev.close * 100) : 0;
-      const sign   = change >= 0 ? '+' : '';
+      const sign = change >= 0 ? '+' : '';
 
       chartSymName.textContent = symbol;
-      chartPrice.textContent   = `₹${last.close.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-      chartChange.textContent  = `${sign}${change.toFixed(2)}%`;
-      chartChange.className    = change >= 0 ? 'up' : 'down';
+      chartPrice.textContent = `₹${last.close.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      chartChange.textContent = `${sign}${change.toFixed(2)}%`;
+      chartChange.className = change >= 0 ? 'up' : 'down';
 
       // Document title
       document.title = `${symbol} ₹${last.close.toFixed(2)} — NSE Dashboard`;
@@ -926,7 +1077,7 @@
     btn.addEventListener('click', () => {
       document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      currentRange    = btn.dataset.range;
+      currentRange = btn.dataset.range;
       currentInterval = btn.dataset.interval;
       if (activeSymbol) loadChart(activeSymbol, currentRange, currentInterval);
     });
@@ -1000,7 +1151,7 @@
             }
           }
         })
-        .catch(() => {});
+        .catch(() => { });
     }, 1000);
   }
 
@@ -1043,11 +1194,11 @@
   let toastTimer = null;
   function showToast(icon, msg, type) {
     toastIcon.textContent = icon;
-    toastMsg.textContent  = msg;
+    toastMsg.textContent = msg;
     toast.style.borderColor =
       type === 'success' ? 'rgba(16,185,129,0.4)' :
-      type === 'error'   ? 'rgba(239,68,68,0.4)'  :
-      'rgba(255,255,255,0.13)';
+        type === 'error' ? 'rgba(239,68,68,0.4)' :
+          'rgba(255,255,255,0.13)';
     toast.classList.add('show');
     if (toastTimer) clearTimeout(toastTimer);
     toastTimer = setTimeout(() => toast.classList.remove('show'), 3500);
@@ -1065,15 +1216,793 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════
+     WATCHLIST MANAGER  (data layer — localStorage)
+  ═══════════════════════════════════════════════════════════════════ */
+  const WatchlistManager = (() => {
+    const STORAGE_KEY = 'nse_watchlists_v2';
+
+    function _load() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) return JSON.parse(raw);
+      } catch (_) { }
+      // Default starter data
+      return {
+        activeList: 'My Watchlist',
+        lists: {
+          'My Watchlist': {
+            sections: [
+              { id: _uid(), name: 'NIFTY 50', collapsed: false, symbols: [] },
+            ],
+          },
+        },
+      };
+    }
+
+    function _save(data) {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch (_) { }
+    }
+
+    function _uid() {
+      return Math.random().toString(36).slice(2, 9);
+    }
+
+    let _data = _load();
+
+    function getListNames() { return Object.keys(_data.lists); }
+    function getActiveListName() { return _data.activeList; }
+
+    function getActiveList() {
+      return _data.lists[_data.activeList] || null;
+    }
+
+    function setActiveList(name) {
+      if (_data.lists[name]) {
+        _data.activeList = name;
+        _save(_data);
+      }
+    }
+
+    function createList(name) {
+      const trimmed = name.trim();
+      if (!trimmed || _data.lists[trimmed]) return false;
+      _data.lists[trimmed] = { sections: [] };
+      _data.activeList = trimmed;
+      _save(_data);
+      return true;
+    }
+
+    function renameList(oldName, newName) {
+      const trimmed = newName.trim();
+      if (!trimmed || oldName === trimmed || _data.lists[trimmed]) return false;
+      const listData = _data.lists[oldName];
+      _data.lists[trimmed] = listData;
+      delete _data.lists[oldName];
+      if (_data.activeList === oldName) _data.activeList = trimmed;
+      _save(_data);
+      return true;
+    }
+
+    function deleteList(name) {
+      const names = getListNames();
+      if (names.length <= 1) return false; // keep at least one
+      delete _data.lists[name];
+      if (_data.activeList === name) _data.activeList = getListNames()[0];
+      _save(_data);
+      return true;
+    }
+
+    function addSection(listName, sectionName) {
+      const list = _data.lists[listName];
+      if (!list) return null;
+      const sec = { id: _uid(), name: sectionName.trim() || 'New Section', collapsed: false, symbols: [] };
+      list.sections.push(sec);
+      _save(_data);
+      return sec;
+    }
+
+    function renameSection(listName, sectionId, newName) {
+      const sec = _findSection(listName, sectionId);
+      if (!sec) return false;
+      sec.name = newName.trim() || sec.name;
+      _save(_data);
+      return true;
+    }
+
+    function deleteSection(listName, sectionId) {
+      const list = _data.lists[listName];
+      if (!list) return false;
+      list.sections = list.sections.filter(s => s.id !== sectionId);
+      _save(_data);
+      return true;
+    }
+
+    function toggleSection(listName, sectionId) {
+      const sec = _findSection(listName, sectionId);
+      if (!sec) return;
+      sec.collapsed = !sec.collapsed;
+      _save(_data);
+    }
+
+    function addSymbol(listName, sectionId, symbol) {
+      const sec = _findSection(listName, sectionId);
+      if (!sec) return false;
+      const sym = symbol.trim().toUpperCase();
+      if (!sym || sec.symbols.includes(sym)) return false;
+      sec.symbols.push(sym);
+      _save(_data);
+      return true;
+    }
+
+    function removeSymbol(listName, sectionId, symbol) {
+      const sec = _findSection(listName, sectionId);
+      if (!sec) return false;
+      sec.symbols = sec.symbols.filter(s => s !== symbol);
+      _save(_data);
+      return true;
+    }
+
+    function _findSection(listName, sectionId) {
+      const list = _data.lists[listName];
+      if (!list) return null;
+      return list.sections.find(s => s.id === sectionId) || null;
+    }
+
+    function totalSymbolCount(listName) {
+      const list = _data.lists[listName];
+      if (!list) return 0;
+      return list.sections.reduce((n, s) => n + s.symbols.length, 0);
+    }
+
+    return {
+      getListNames, getActiveListName, getActiveList,
+      setActiveList, createList, renameList, deleteList,
+      addSection, renameSection, deleteSection, toggleSection,
+      addSymbol, removeSymbol, totalSymbolCount,
+    };
+  })();
+
+  /* ═══════════════════════════════════════════════════════════════════
+     WATCHLIST UI
+  ═══════════════════════════════════════════════════════════════════ */
+  const WatchlistUI = (() => {
+    // Context menu state
+    let _ctxListName = null;
+    let _ctxSectionId = null;
+    let _ctxSymbol = null;
+
+    // Section being used for add-symbol input
+    let _addingToSection = null;
+
+    const wlPanel = $('watchlist-panel');
+    const wlSections = $('wl-sections');
+    const wlEmpty = $('wl-empty');
+    const wlListName = $('wl-list-name');
+    const wlListBtn = $('wl-list-btn');
+    const wlListDropdown = $('wl-list-dropdown');
+    const wlNewListBtn = $('wl-new-list-btn');
+    const wlAddSectionBtn = $('wl-add-section-btn');
+    const wlEditListBtn = $('wl-edit-list-btn');
+    const wlDelListBtn = $('wl-delete-list-btn');
+
+    // Modal (create / rename list)
+    const wlModal = $('wl-modal');
+    const wlModalTitle = $('wl-modal-title');
+    const wlModalInput = $('wl-modal-input');
+    const wlModalCancel = $('wl-modal-cancel');
+    const wlModalConfirm = $('wl-modal-confirm');
+
+    // Section modal
+    const wlSecModal = $('wl-section-modal');
+    const wlSecModalTitle = $('wl-section-modal-title');
+    const wlSecModalInput = $('wl-section-modal-input');
+    const wlSecModalCancel = $('wl-section-modal-cancel');
+    const wlSecModalConfirm = $('wl-section-modal-confirm');
+
+    // Context menu
+    const ctxMenu = $('wl-context-menu');
+    const ctxLoadChart = $('wl-ctx-load-chart');
+    const ctxAddSymbol = $('wl-ctx-add-symbol');
+    const ctxRenSec = $('wl-ctx-rename-section');
+    const ctxDelSec = $('wl-ctx-delete-section');
+    const ctxRemSym = $('wl-ctx-remove-symbol');
+    const ctxSymSep = $('wl-ctx-symbol-sep');
+
+    // ── Render ────────────────────────────────────────────────────────
+
+    function renderAll() {
+      const listName = WatchlistManager.getActiveListName();
+      wlListName.textContent = listName;
+
+      const list = WatchlistManager.getActiveList();
+      wlSections.innerHTML = '';
+
+      const hasSections = list && list.sections.length > 0;
+      const hasSymbols = list && WatchlistManager.totalSymbolCount(listName) > 0;
+
+      if (!hasSections) {
+        wlEmpty.style.display = 'flex';
+        return;
+      }
+      wlEmpty.style.display = 'none';
+
+      list.sections.forEach(sec => {
+        wlSections.appendChild(_buildSection(listName, sec));
+      });
+    }
+
+    function _buildSection(listName, sec) {
+      const wrap = document.createElement('div');
+      wrap.className = 'wl-section' + (sec.collapsed ? ' collapsed' : '');
+      wrap.dataset.sectionId = sec.id;
+
+      // Header
+      const header = document.createElement('div');
+      header.className = 'wl-section-header';
+      header.innerHTML = `
+        <span class="wl-section-toggle">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+            <path d="M1 3L5 7L9 3" stroke="currentColor" stroke-width="1.5" fill="none"/>
+          </svg>
+        </span>
+        <span class="wl-section-name" title="${escHtml(sec.name)}">${escHtml(sec.name)}</span>
+        <span class="wl-section-count">${sec.symbols.length}</span>
+        <button class="wl-section-add-btn" title="Add symbol to this section">+</button>
+        <button class="wl-section-menu-btn" title="Section options">
+          <svg width="12" height="12" viewBox="0 0 15 15" fill="currentColor">
+            <circle cx="7.5" cy="2.5" r="1.3"/><circle cx="7.5" cy="7.5" r="1.3"/><circle cx="7.5" cy="12.5" r="1.3"/>
+          </svg>
+        </button>
+      `;
+
+      // Toggle collapse on header click (not buttons)
+      header.addEventListener('click', e => {
+        if (e.target.closest('.wl-section-add-btn') || e.target.closest('.wl-section-menu-btn')) return;
+        WatchlistManager.toggleSection(listName, sec.id);
+        wrap.classList.toggle('collapsed', sec.collapsed);
+        _updateSectionBodyHeight(wrap);
+      });
+
+      // Add button
+      header.querySelector('.wl-section-add-btn').addEventListener('click', e => {
+        e.stopPropagation();
+        _openAddSymbol(listName, sec.id, wrap);
+      });
+
+      // Menu button
+      header.querySelector('.wl-section-menu-btn').addEventListener('click', e => {
+        e.stopPropagation();
+        _openContextMenu(e, listName, sec.id, null);
+      });
+
+      // Body
+      const body = document.createElement('div');
+      body.className = 'wl-section-body';
+
+      // Symbol rows
+      sec.symbols.forEach(sym => {
+        body.appendChild(_buildSymbolRow(listName, sec.id, sym));
+      });
+
+      // Add-symbol input area
+      const addWrap = _buildAddSymbolArea(listName, sec.id, wrap);
+      body.appendChild(addWrap);
+
+      wrap.appendChild(header);
+      wrap.appendChild(body);
+
+      // Set initial height
+      requestAnimationFrame(() => _updateSectionBodyHeight(wrap));
+
+      return wrap;
+    }
+
+    function _updateSectionBodyHeight(wrap) {
+      const body = wrap.querySelector('.wl-section-body');
+      if (!body) return;
+      if (wrap.classList.contains('collapsed')) {
+        body.style.maxHeight = '0';
+      } else {
+        body.style.maxHeight = body.scrollHeight + 'px';
+      }
+    }
+
+    function _expandSectionHeight(wrap) {
+      const body = wrap.querySelector('.wl-section-body');
+      if (!body || wrap.classList.contains('collapsed')) return;
+      body.style.maxHeight = body.scrollHeight + 500 + 'px'; // allow for new rows
+    }
+
+    function _buildSymbolRow(listName, sectionId, symbol) {
+      const row = document.createElement('div');
+      row.className = 'wl-symbol-row';
+      if (symbol === activeSymbol) row.classList.add('active');
+      row.dataset.symbol = symbol;
+
+      // Look up price data from loaded stocks
+      const stock = allStocks.find(s => s.symbol === symbol);
+      let priceHtml = '<span class="wl-sym-price">—</span>';
+      let chgHtml = '<span class="wl-sym-chg flat">—</span>';
+      if (stock) {
+        const p = stock.price;
+        const c = stock.change_pct;
+        const priceStr = p != null ? `₹${Number(p).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
+        const chgClass = c > 0 ? 'up' : (c < 0 ? 'down' : 'flat');
+        const arrow = c > 0 ? '▲' : (c < 0 ? '▼' : '—');
+        const chgStr = c != null ? `${arrow} ${c > 0 ? '+' : ''}${Number(c).toFixed(2)}%` : '—';
+        priceHtml = `<span class="wl-sym-price">${priceStr}</span>`;
+        chgHtml = `<span class="wl-sym-chg ${chgClass}">${chgStr}</span>`;
+      }
+
+      row.innerHTML = `
+        <span class="wl-sym-drag">⋮⋮</span>
+        <span class="wl-sym-name">${escHtml(symbol)}</span>
+        ${priceHtml}
+        ${chgHtml}
+      `;
+
+      row.addEventListener('click', () => {
+        // Deactivate old
+        document.querySelectorAll('.wl-symbol-row.active').forEach(r => r.classList.remove('active'));
+        row.classList.add('active');
+        activeSymbol = symbol;
+        loadChart(symbol, currentRange, currentInterval);
+      });
+
+      row.addEventListener('contextmenu', e => {
+        e.preventDefault();
+        _openContextMenu(e, listName, sectionId, symbol);
+      });
+
+      return row;
+    }
+
+    function _buildAddSymbolArea(listName, sectionId, sectionWrap) {
+      const wrap = document.createElement('div');
+      wrap.className = 'wl-add-symbol-wrap';
+
+      const inputRow = document.createElement('div');
+      inputRow.className = 'wl-symbol-input-row';
+
+      const input = document.createElement('input');
+      input.className = 'wl-symbol-input';
+      input.type = 'text';
+      input.placeholder = 'Search symbol…';
+      input.maxLength = 30;
+      input.autocomplete = 'off';
+      input.spellcheck = false;
+
+      const confirmBtn = document.createElement('button');
+      confirmBtn.className = 'wl-symbol-confirm-btn';
+      confirmBtn.title = 'Add symbol';
+      confirmBtn.textContent = '✓';
+
+      const cancelBtn = document.createElement('button');
+      cancelBtn.className = 'wl-symbol-cancel-btn';
+      cancelBtn.title = 'Cancel';
+      cancelBtn.textContent = '✕';
+
+      inputRow.append(input, confirmBtn, cancelBtn);
+
+      const suggestionsEl = document.createElement('div');
+      suggestionsEl.className = 'wl-suggestions';
+      suggestionsEl.style.display = 'none';
+
+      wrap.append(inputRow, suggestionsEl);
+
+      // Autocomplete
+      let highlightIndex = -1;
+      let filteredSugs = [];
+
+      function updateSuggestions() {
+        const q = input.value.trim().toUpperCase();
+        suggestionsEl.innerHTML = '';
+        if (!q) { suggestionsEl.style.display = 'none'; return; }
+
+        filteredSugs = allStocks
+          .filter(s => s.symbol.startsWith(q))
+          .slice(0, 8);
+
+        if (!filteredSugs.length) { suggestionsEl.style.display = 'none'; return; }
+
+        filteredSugs.forEach((s, i) => {
+          const item = document.createElement('div');
+          item.className = 'wl-suggestion-item';
+          const price = s.price != null ? `₹${Number(s.price).toFixed(2)}` : '';
+          item.innerHTML = `<span>${escHtml(s.symbol)}</span><span class="sug-price">${price}</span>`;
+          item.addEventListener('mousedown', e => {
+            e.preventDefault();
+            _addSymbolFromInput(listName, sectionId, s.symbol, sectionWrap, wrap, input, suggestionsEl);
+          });
+          suggestionsEl.appendChild(item);
+        });
+
+        highlightIndex = -1;
+        suggestionsEl.style.display = 'block';
+        _expandSectionHeight(sectionWrap);
+      }
+
+      input.addEventListener('input', updateSuggestions);
+
+      input.addEventListener('keydown', e => {
+        const items = suggestionsEl.querySelectorAll('.wl-suggestion-item');
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          highlightIndex = Math.min(highlightIndex + 1, items.length - 1);
+          _highlightSug(items, highlightIndex);
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          highlightIndex = Math.max(highlightIndex - 1, -1);
+          _highlightSug(items, highlightIndex);
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          const sym = highlightIndex >= 0 && filteredSugs[highlightIndex]
+            ? filteredSugs[highlightIndex].symbol
+            : input.value.trim().toUpperCase();
+          if (sym) _addSymbolFromInput(listName, sectionId, sym, sectionWrap, wrap, input, suggestionsEl);
+        } else if (e.key === 'Escape') {
+          _closeAddSymbol(wrap, input, suggestionsEl);
+        }
+      });
+
+      confirmBtn.addEventListener('click', () => {
+        const sym = input.value.trim().toUpperCase();
+        if (sym) _addSymbolFromInput(listName, sectionId, sym, sectionWrap, wrap, input, suggestionsEl);
+      });
+
+      cancelBtn.addEventListener('click', () => _closeAddSymbol(wrap, input, suggestionsEl));
+
+      return wrap;
+    }
+
+    function _highlightSug(items, idx) {
+      items.forEach((it, i) => it.classList.toggle('highlighted', i === idx));
+    }
+
+    function _addSymbolFromInput(listName, sectionId, symbol, sectionWrap, addWrap, input, suggestionsEl) {
+      const ok = WatchlistManager.addSymbol(listName, sectionId, symbol);
+      if (ok) {
+        // Insert new row before the add-wrap
+        const body = sectionWrap.querySelector('.wl-section-body');
+        const newRow = _buildSymbolRow(listName, sectionId, symbol);
+        body.insertBefore(newRow, addWrap);
+        // Update count
+        const sec = WatchlistManager.getActiveList()?.sections.find(s => s.id === sectionId);
+        if (sec) sectionWrap.querySelector('.wl-section-count').textContent = sec.symbols.length;
+        showToast('⭐', `${symbol} added to watchlist`, 'success');
+      } else {
+        showToast('⚠️', `${symbol} already in this section`, '');
+      }
+      input.value = '';
+      suggestionsEl.style.display = 'none';
+      suggestionsEl.innerHTML = '';
+      input.focus();
+      _expandSectionHeight(sectionWrap);
+    }
+
+    function _openAddSymbol(listName, sectionId, sectionWrap) {
+      // Close any other open add-inputs
+      document.querySelectorAll('.wl-add-symbol-wrap.open').forEach(w => {
+        w.classList.remove('open');
+        w.querySelector('.wl-symbol-input').value = '';
+        w.querySelector('.wl-suggestions').style.display = 'none';
+      });
+
+      _addingToSection = sectionId;
+      const addWrap = sectionWrap.querySelector('.wl-add-symbol-wrap');
+      addWrap.classList.add('open');
+      _expandSectionHeight(sectionWrap);
+      requestAnimationFrame(() => addWrap.querySelector('.wl-symbol-input')?.focus());
+    }
+
+    function _closeAddSymbol(wrap, input, suggestionsEl) {
+      wrap.classList.remove('open');
+      input.value = '';
+      suggestionsEl.style.display = 'none';
+      _addingToSection = null;
+    }
+
+    // ── Context menu ─────────────────────────────────────────────────
+
+    function _openContextMenu(e, listName, sectionId, symbol) {
+      _ctxListName = listName;
+      _ctxSectionId = sectionId;
+      _ctxSymbol = symbol;
+
+      // Show/hide symbol-specific items
+      const hasSymbol = !!symbol;
+      ctxLoadChart.style.display = hasSymbol ? '' : 'none';
+      ctxSymSep.style.display = hasSymbol ? '' : 'none';
+      ctxRemSym.style.display = hasSymbol ? '' : 'none';
+      ctxAddSymbol.style.display = hasSymbol ? 'none' : '';
+
+      ctxMenu.classList.add('open');
+
+      // Position near cursor
+      const vw = window.innerWidth, vh = window.innerHeight;
+      let x = e.clientX, y = e.clientY;
+      const menuW = 190, menuH = 160;
+      if (x + menuW > vw) x = vw - menuW - 8;
+      if (y + menuH > vh) y = vh - menuH - 8;
+      ctxMenu.style.left = x + 'px';
+      ctxMenu.style.top = y + 'px';
+    }
+
+    function _closeContextMenu() {
+      ctxMenu.classList.remove('open');
+      _ctxListName = _ctxSectionId = _ctxSymbol = null;
+    }
+
+    // ── List dropdown ─────────────────────────────────────────────────
+
+    function renderListDropdown() {
+      const names = WatchlistManager.getListNames();
+      const active = WatchlistManager.getActiveListName();
+      wlListDropdown.innerHTML = '';
+
+      names.forEach(name => {
+        const btn = document.createElement('button');
+        btn.className = 'wl-dropdown-item' + (name === active ? ' active' : '');
+        const count = WatchlistManager.totalSymbolCount(name);
+        btn.innerHTML = `
+          <span class="wl-dd-check">${name === active ? '✓' : ''}</span>
+          <span class="wl-dd-name">${escHtml(name)}</span>
+          <span class="wl-dd-count">${count}</span>
+        `;
+        btn.addEventListener('click', () => {
+          WatchlistManager.setActiveList(name);
+          wlListBtn.setAttribute('aria-expanded', 'false');
+          wlListDropdown.classList.remove('open');
+          renderAll();
+        });
+        wlListDropdown.appendChild(btn);
+      });
+
+      // Separator + create new
+      const sep = document.createElement('div');
+      sep.className = 'wl-dropdown-sep';
+      wlListDropdown.appendChild(sep);
+
+      const createBtn = document.createElement('button');
+      createBtn.className = 'wl-dropdown-item';
+      createBtn.innerHTML = `<span class="wl-dd-check">+</span><span class="wl-dd-name">Create new list…</span>`;
+      createBtn.addEventListener('click', () => {
+        wlListBtn.setAttribute('aria-expanded', 'false');
+        wlListDropdown.classList.remove('open');
+        _openListModal('create');
+      });
+      wlListDropdown.appendChild(createBtn);
+    }
+
+    // ── Modals ────────────────────────────────────────────────────────
+
+    let _modalMode = 'create'; // 'create' | 'rename'
+
+    function _openListModal(mode) {
+      _modalMode = mode;
+      wlModalTitle.textContent = mode === 'create' ? 'New Watchlist' : 'Rename Watchlist';
+      wlModalInput.value = mode === 'rename' ? WatchlistManager.getActiveListName() : '';
+      wlModalConfirm.textContent = mode === 'create' ? 'Create' : 'Save';
+      wlModal.classList.add('visible');
+      requestAnimationFrame(() => { wlModalInput.focus(); wlModalInput.select(); });
+    }
+
+    function _closeListModal() {
+      wlModal.classList.remove('visible');
+    }
+
+    let _sectionModalMode = 'add'; // 'add' | 'rename'
+    let _sectionModalTargetId = null;
+
+    function _openSectionModal(mode, sectionId, currentName) {
+      _sectionModalMode = mode;
+      _sectionModalTargetId = sectionId || null;
+      wlSecModalTitle.textContent = mode === 'add' ? 'New Section' : 'Rename Section';
+      wlSecModalInput.value = mode === 'rename' ? (currentName || '') : '';
+      wlSecModalConfirm.textContent = mode === 'add' ? 'Add' : 'Save';
+      wlSecModal.classList.add('visible');
+      requestAnimationFrame(() => { wlSecModalInput.focus(); wlSecModalInput.select(); });
+    }
+
+    function _closeSectionModal() {
+      wlSecModal.classList.remove('visible');
+    }
+
+    // ── Event wiring ──────────────────────────────────────────────────
+
+    function init() {
+      // List selector dropdown toggle
+      wlListBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        const isOpen = wlListDropdown.classList.contains('open');
+        if (!isOpen) renderListDropdown();
+        wlListDropdown.classList.toggle('open', !isOpen);
+        wlListBtn.setAttribute('aria-expanded', String(!isOpen));
+      });
+
+      // New list button
+      wlNewListBtn.addEventListener('click', () => _openListModal('create'));
+
+      // Edit list (rename)
+      wlEditListBtn.addEventListener('click', () => _openListModal('rename'));
+
+      // Delete list
+      wlDelListBtn.addEventListener('click', () => {
+        const name = WatchlistManager.getActiveListName();
+        if (WatchlistManager.getListNames().length <= 1) {
+          showToast('⚠️', 'Cannot delete the last watchlist', '');
+          return;
+        }
+        if (confirm(`Delete watchlist "${name}"? This cannot be undone.`)) {
+          WatchlistManager.deleteList(name);
+          renderAll();
+          showToast('🗑', `Deleted "${name}"`, 'success');
+        }
+      });
+
+      // Add section
+      wlAddSectionBtn.addEventListener('click', () => _openSectionModal('add', null, ''));
+
+      // List modal events
+      wlModalConfirm.addEventListener('click', _handleListModalConfirm);
+      wlModalCancel.addEventListener('click', _closeListModal);
+      wlModal.addEventListener('click', e => { if (e.target === wlModal) _closeListModal(); });
+      wlModalInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter') _handleListModalConfirm();
+        if (e.key === 'Escape') _closeListModal();
+      });
+
+      // Section modal events
+      wlSecModalConfirm.addEventListener('click', _handleSectionModalConfirm);
+      wlSecModalCancel.addEventListener('click', _closeSectionModal);
+      wlSecModal.addEventListener('click', e => { if (e.target === wlSecModal) _closeSectionModal(); });
+      wlSecModalInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter') _handleSectionModalConfirm();
+        if (e.key === 'Escape') _closeSectionModal();
+      });
+
+      // Context menu actions
+      ctxLoadChart.addEventListener('click', () => {
+        if (_ctxSymbol) {
+          activeSymbol = _ctxSymbol;
+          loadChart(_ctxSymbol, currentRange, currentInterval);
+          document.querySelectorAll('.wl-symbol-row.active').forEach(r => r.classList.remove('active'));
+          const row = document.querySelector(`.wl-symbol-row[data-symbol="${_ctxSymbol}"]`);
+          if (row) row.classList.add('active');
+        }
+        _closeContextMenu();
+      });
+
+      ctxAddSymbol.addEventListener('click', () => {
+        if (_ctxSectionId) {
+          const sectionWrap = document.querySelector(`.wl-section[data-section-id="${_ctxSectionId}"]`);
+          if (sectionWrap) _openAddSymbol(_ctxListName, _ctxSectionId, sectionWrap);
+        }
+        _closeContextMenu();
+      });
+
+      ctxRenSec.addEventListener('click', () => {
+        const list = WatchlistManager.getActiveList();
+        const sec = list?.sections.find(s => s.id === _ctxSectionId);
+        if (sec) _openSectionModal('rename', _ctxSectionId, sec.name);
+        _closeContextMenu();
+      });
+
+      ctxDelSec.addEventListener('click', () => {
+        const listName = _ctxListName;
+        const secId = _ctxSectionId;
+        _closeContextMenu();
+        if (listName && secId) {
+          WatchlistManager.deleteSection(listName, secId);
+          renderAll();
+          showToast('🗑', 'Section deleted', 'success');
+        }
+      });
+
+      ctxRemSym.addEventListener('click', () => {
+        const listName = _ctxListName;
+        const secId = _ctxSectionId;
+        const sym = _ctxSymbol;
+        _closeContextMenu();
+        if (listName && secId && sym) {
+          WatchlistManager.removeSymbol(listName, secId, sym);
+          renderAll();
+          showToast('✕', `${sym} removed`, 'success');
+        }
+      });
+
+      // Close context menu + dropdowns on outside click
+      document.addEventListener('click', e => {
+        if (!ctxMenu.contains(e.target)) _closeContextMenu();
+        if (!wlListDropdown.contains(e.target) && !wlListBtn.contains(e.target)) {
+          wlListDropdown.classList.remove('open');
+          wlListBtn.setAttribute('aria-expanded', 'false');
+        }
+      });
+
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') { _closeContextMenu(); _closeListModal(); _closeSectionModal(); }
+      });
+
+      // Initial render
+      renderAll();
+    }
+
+    function _handleListModalConfirm() {
+      const val = wlModalInput.value.trim();
+      if (!val) return;
+      const listName = WatchlistManager.getActiveListName();
+      if (_modalMode === 'create') {
+        const ok = WatchlistManager.createList(val);
+        if (!ok) { showToast('⚠️', `List "${val}" already exists`, ''); return; }
+        showToast('✅', `Created "${val}"`, 'success');
+      } else {
+        const ok = WatchlistManager.renameList(listName, val);
+        if (!ok) { showToast('⚠️', `Name already taken`, ''); return; }
+        showToast('✅', `Renamed to "${val}"`, 'success');
+      }
+      _closeListModal();
+      renderAll();
+    }
+
+    function _handleSectionModalConfirm() {
+      const val = wlSecModalInput.value.trim();
+      if (!val) return;
+      const listName = WatchlistManager.getActiveListName();
+      if (_sectionModalMode === 'add') {
+        WatchlistManager.addSection(listName, val);
+        showToast('📁', `Section "${val}" added`, 'success');
+      } else {
+        WatchlistManager.renameSection(listName, _sectionModalTargetId, val);
+        showToast('✅', `Section renamed to "${val}"`, 'success');
+      }
+      _closeSectionModal();
+      renderAll();
+    }
+
+    return { init, renderAll };
+  })();
+
+  /* ═══════════════════════════════════════════════════════════════════
+     TAB SWITCHING
+  ═══════════════════════════════════════════════════════════════════ */
+  function initTabs() {
+    const screenerPanel = $('screener-panel');
+    const watchlistPanel = $('watchlist-panel');
+    const tabs = document.querySelectorAll('.sidebar-tab');
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+
+        const target = tab.dataset.tab;
+        if (target === 'screener') {
+          screenerPanel.style.display = 'flex';
+          watchlistPanel.style.display = 'none';
+          // Refresh star states in case symbols were added/removed via watchlist tab
+          _refreshAllStarBtns();
+        } else {
+          screenerPanel.style.display = 'none';
+          watchlistPanel.style.display = 'flex';
+          WatchlistUI.renderAll();
+        }
+      });
+    });
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════
      KEYBOARD SHORTCUT  (R = refresh, Escape = close modal)
   ═══════════════════════════════════════════════════════════════════ */
   document.addEventListener('keydown', e => {
     const noInput = document.activeElement.tagName !== 'INPUT'
-                 && document.activeElement.tagName !== 'SELECT';
+      && document.activeElement.tagName !== 'SELECT';
     if (e.key === 'Escape') {
       if (refreshModal.classList.contains('visible')) { closeRefreshModal(); return; }
-      if (pendingPoint) { pendingPoint = null; if (previewPrim) previewPrim.clear();
-        $('chart-body')?.classList.remove('pending-point'); return; }
+      if (pendingPoint) {
+        pendingPoint = null; if (previewPrim) previewPrim.clear();
+        $('chart-body')?.classList.remove('pending-point'); return;
+      }
       if (activeTool !== 'pointer') { setActiveTool('pointer'); return; }
     }
     if (e.key === 'z' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); undoLastDrawing(); }
@@ -1087,6 +2016,9 @@
     initCharts();
     loadStocks();
     initDrawingToolbar();
+    initScreenerStarBtn();  // register once — never accumulates
+    initTabs();
+    WatchlistUI.init();
   }
 
   init();

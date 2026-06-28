@@ -1,270 +1,493 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NSE Market Dashboard — India</title>
-  <meta name="description" content="Professional trading dashboard for NSE Indian stock market with real-time filters and TradingView Lightweight Charts." />
+  <meta name="description"
+    content="Professional trading dashboard for NSE Indian stock market with real-time filters, TradingView Lightweight Charts, and a fully featured watchlist." />
   <link rel="stylesheet" href="styles.css" />
   <!-- TradingView Lightweight Charts v5 -->
   <script src="https://unpkg.com/lightweight-charts@5.0.7/dist/lightweight-charts.standalone.production.js"></script>
 </head>
+
 <body>
 
-<div id="app">
+  <div id="app">
 
-  <!-- ══════════════════════════════════════════
+    <!-- ══════════════════════════════════════════
        LEFT PANEL — Sidebar
        ══════════════════════════════════════════ -->
-  <aside id="sidebar">
+    <aside id="sidebar">
 
-    <!-- Header / Logo -->
-    <div id="sidebar-header">
-      <div class="logo-row">
-        <div class="logo-icon">📈</div>
-        <div class="logo-text">
-          <div class="logo-title">NSE Dashboard</div>
-          <div class="logo-sub">Indian Market Intelligence</div>
+      <!-- Header / Logo -->
+      <div id="sidebar-header">
+        <div class="logo-row">
+          <div class="logo-icon">📈</div>
+          <div class="logo-text">
+            <div class="logo-title">NSE Dashboard</div>
+            <div class="logo-sub">Indian Market Intelligence</div>
+          </div>
+        </div>
+        <div id="last-updated-bar">
+          <span id="dot-live" title="Live data"></span>
+          <span id="last-updated-text">Loading data…</span>
         </div>
       </div>
-      <div id="last-updated-bar">
-        <span id="dot-live" title="Live data"></span>
-        <span id="last-updated-text">Loading data…</span>
+
+      <!-- ── Tab Bar ──────────────────────────── -->
+      <div id="sidebar-tabs">
+        <button class="sidebar-tab active" id="tab-screener" data-tab="screener">
+          <svg width="13" height="13" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6">
+            <rect x="1" y="1" width="13" height="13" rx="1.5" />
+            <line x1="1" y1="5" x2="14" y2="5" />
+            <line x1="5" y1="5" x2="5" y2="14" />
+          </svg>
+          Screener
+        </button>
+        <button class="sidebar-tab" id="tab-watchlist" data-tab="watchlist">
+          <svg width="13" height="13" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6">
+            <path d="M7.5 1.5L9.18 5.6L13.5 6.18L10.5 9.1L11.36 13.5L7.5 11.4L3.64 13.5L4.5 9.1L1.5 6.18L5.82 5.6Z" />
+          </svg>
+          Watchlist
+        </button>
       </div>
-    </div>
 
-    <!-- Filters + Refresh -->
-    <div id="filter-bar">
-      <div class="filter-label">Stock Filter</div>
+      <!-- ══════════════════════════════════════════
+         SCREENER PANEL (existing content)
+         ══════════════════════════════════════════ -->
+      <div id="screener-panel">
 
-      <div class="select-wrapper">
-        <select id="filter-select" aria-label="Select stock filter">
-          <option value="uptrend">📈 Uptrend — EMA(20) &gt; EMA(50) &gt; EMA(200)</option>
-          <option value="perf3m">🚀 3M Performance — 3M Return &gt; 30%</option>
-          <option value="volspike">⚡ Volume Spike — RelVol &gt; 3×, Change &gt; 3%</option>
-        </select>
+        <!-- Filters + Refresh -->
+        <div id="filter-bar">
+          <div class="filter-label">Stock Filter</div>
+
+          <div class="select-wrapper">
+            <select id="filter-select" aria-label="Select stock filter">
+              <option value="uptrend">📈 Uptrend — EMA(20) &gt; EMA(50) &gt; EMA(200)</option>
+              <option value="perf3m">🚀 3M Performance — 3M Return &gt; 30%</option>
+              <option value="volspike">⚡ Volume Spike — RelVol &gt; 3×, Change &gt; 3%</option>
+            </select>
+          </div>
+
+          <div id="filter-info">
+            <span id="filter-desc">Price &gt; ₹30 · EMA(20) &gt; EMA(50) &gt; EMA(200) · MCap &gt; ₹800 Cr</span>
+            <span id="stock-count-badge">
+              <span id="stock-count">—</span> stocks
+            </span>
+          </div>
+
+          <button id="refresh-btn" title="Refresh market data (runs Python fetch script)">
+            <span class="btn-icon">⟳</span>
+            <span class="btn-label">Refresh Market Data</span>
+          </button>
+        </div>
+
+        <!-- Stock Table -->
+        <div id="stock-list-wrap">
+          <div id="stock-empty"
+            style="display:none; flex-direction:column; align-items:center; justify-content:center; padding:60px 20px; gap:12px; color:var(--text-muted);">
+            <div class="empty-icon">🔍</div>
+            <p>No stocks match the current filter.<br />Try a different filter or refresh data.</p>
+          </div>
+
+          <table id="stock-table" aria-label="Filtered NSE stocks">
+            <thead>
+              <tr>
+                <th id="th-symbol" data-col="symbol" tabindex="0" title="NSE Symbol">SYMBOL</th>
+                <th id="th-price" data-col="price" tabindex="0" title="Current Price (₹)">PRICE ₹</th>
+                <th id="th-change" data-col="change_pct" tabindex="0" title="Daily % Change">CHG %</th>
+                <th id="th-mktcap" data-col="marketcap_cr" tabindex="0" title="Market Cap in Crores">MCAP Cr</th>
+              </tr>
+            </thead>
+            <tbody id="stock-tbody">
+              <!-- Skeleton rows while loading -->
+              <tr class="skeleton-row">
+                <td>
+                  <div class="skeleton-cell" style="width:80px"></div>
+                </td>
+                <td>
+                  <div class="skeleton-cell" style="width:55px;margin-left:auto"></div>
+                </td>
+                <td>
+                  <div class="skeleton-cell" style="width:50px;margin-left:auto"></div>
+                </td>
+                <td>
+                  <div class="skeleton-cell" style="width:60px;margin-left:auto"></div>
+                </td>
+              </tr>
+              <tr class="skeleton-row">
+                <td>
+                  <div class="skeleton-cell" style="width:70px"></div>
+                </td>
+                <td>
+                  <div class="skeleton-cell" style="width:55px;margin-left:auto"></div>
+                </td>
+                <td>
+                  <div class="skeleton-cell" style="width:50px;margin-left:auto"></div>
+                </td>
+                <td>
+                  <div class="skeleton-cell" style="width:60px;margin-left:auto"></div>
+                </td>
+              </tr>
+              <tr class="skeleton-row">
+                <td>
+                  <div class="skeleton-cell" style="width:90px"></div>
+                </td>
+                <td>
+                  <div class="skeleton-cell" style="width:55px;margin-left:auto"></div>
+                </td>
+                <td>
+                  <div class="skeleton-cell" style="width:50px;margin-left:auto"></div>
+                </td>
+                <td>
+                  <div class="skeleton-cell" style="width:60px;margin-left:auto"></div>
+                </td>
+              </tr>
+              <tr class="skeleton-row">
+                <td>
+                  <div class="skeleton-cell" style="width:65px"></div>
+                </td>
+                <td>
+                  <div class="skeleton-cell" style="width:55px;margin-left:auto"></div>
+                </td>
+                <td>
+                  <div class="skeleton-cell" style="width:50px;margin-left:auto"></div>
+                </td>
+                <td>
+                  <div class="skeleton-cell" style="width:60px;margin-left:auto"></div>
+                </td>
+              </tr>
+              <tr class="skeleton-row">
+                <td>
+                  <div class="skeleton-cell" style="width:85px"></div>
+                </td>
+                <td>
+                  <div class="skeleton-cell" style="width:55px;margin-left:auto"></div>
+                </td>
+                <td>
+                  <div class="skeleton-cell" style="width:50px;margin-left:auto"></div>
+                </td>
+                <td>
+                  <div class="skeleton-cell" style="width:60px;margin-left:auto"></div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div><!-- /screener-panel -->
+
+      <!-- ══════════════════════════════════════════
+         WATCHLIST PANEL
+         ══════════════════════════════════════════ -->
+      <div id="watchlist-panel" style="display:none; flex-direction:column; flex:1; overflow:hidden;">
+
+        <!-- List selector bar -->
+        <div id="wl-list-bar">
+          <div id="wl-list-selector-wrap">
+            <button id="wl-list-btn" title="Switch watchlist" aria-haspopup="true" aria-expanded="false">
+              <span id="wl-list-name">My Watchlist</span>
+              <svg id="wl-list-arrow" width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+                <path d="M1 3L5 7L9 3" />
+              </svg>
+            </button>
+            <!-- Dropdown -->
+            <div id="wl-list-dropdown" role="listbox" aria-label="Watchlists">
+              <!-- rendered by JS -->
+            </div>
+          </div>
+          <button id="wl-new-list-btn" title="Create new watchlist" aria-label="Create new watchlist">
+            <svg width="13" height="13" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="7.5" y1="1" x2="7.5" y2="14" />
+              <line x1="1" y1="7.5" x2="14" y2="7.5" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Section controls bar -->
+        <div id="wl-section-bar">
+          <button id="wl-add-section-btn">
+            <svg width="11" height="11" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="7.5" y1="1" x2="7.5" y2="14" />
+              <line x1="1" y1="7.5" x2="14" y2="7.5" />
+            </svg>
+            Add Section
+          </button>
+          <button id="wl-edit-list-btn" title="Rename watchlist">
+            <svg width="12" height="12" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M10.5 1.5L13.5 4.5L5 13H2V10L10.5 1.5Z" />
+            </svg>
+          </button>
+          <button id="wl-delete-list-btn" title="Delete watchlist">
+            <svg width="12" height="12" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5">
+              <polyline points="1.5,4 13.5,4" />
+              <path d="M5,4 L5,2.5 C5,2.2 5.2,2 5.5,2 L9.5,2 C9.8,2 10,2.2 10,2.5 L10,4" />
+              <path d="M3,4 L4,13.5 L11,13.5 L12,4" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Sections container -->
+        <div id="wl-sections" role="list"></div>
+
+        <!-- Empty state -->
+        <div id="wl-empty">
+          <div class="wl-empty-icon">⭐</div>
+          <p>Your watchlist is empty.<br />Add a section then search for symbols.</p>
+        </div>
+
+      </div><!-- /watchlist-panel -->
+
+    </aside>
+
+    <!-- ══════════════════════════════════════════
+       RIGHT PANEL — Chart
+       ══════════════════════════════════════════ -->
+    <main id="chart-panel">
+
+      <!-- Toolbar -->
+      <div id="chart-toolbar">
+        <div id="chart-sym-info">
+          <span id="chart-sym-name">—</span>
+          <span id="chart-sym-exch">NSE</span>
+        </div>
+        <div id="chart-price-info">
+          <span id="chart-price">—</span>
+          <span id="chart-change">—</span>
+        </div>
+
+        <!-- Timeframe buttons -->
+        <div id="timeframe-btns">
+          <button class="tf-btn" data-range="1mo" data-interval="1d">1M</button>
+          <button class="tf-btn" data-range="3mo" data-interval="1d">3M</button>
+          <button class="tf-btn" data-range="6mo" data-interval="1d">6M</button>
+          <button class="tf-btn active" data-range="1y" data-interval="1d">1Y</button>
+          <button class="tf-btn" data-range="2y" data-interval="1wk">2Y</button>
+          <button class="tf-btn" data-range="5y" data-interval="1wk">5Y</button>
+        </div>
       </div>
 
-      <div id="filter-info">
-        <span id="filter-desc">Price &gt; ₹30 · EMA(20) &gt; EMA(50) &gt; EMA(200) · MCap &gt; ₹800 Cr</span>
-        <span id="stock-count-badge">
-          <span id="stock-count">—</span> stocks
+      <!-- Indicator Legend -->
+      <div id="chart-legend">
+        <span class="legend-item">
+          <span class="legend-dot" style="background:#e2e8f0"></span>Price
+        </span>
+        <span class="legend-item">
+          <span class="legend-dot" style="background:#f97316"></span>EMA 10
+        </span>
+        <span class="legend-item">
+          <span class="legend-dot" style="background:#22d3ee"></span>EMA 20
+        </span>
+        <span class="legend-item">
+          <span class="legend-dot" style="background:#a78bfa"></span>EMA 50
+        </span>
+        <span class="legend-item">
+          <span class="legend-dot" style="background:#f59e0b"></span>EMA 200
+        </span>
+        <span class="legend-item" style="margin-left:8px; padding-left:8px; border-left:1px solid var(--border)">
+          <span class="legend-dot" style="background:#38bdf8"></span>Vol MA-50
         </span>
       </div>
 
-      <button id="refresh-btn" title="Refresh market data (runs Python fetch script)">
-        <span class="btn-icon">⟳</span>
-        <span class="btn-label">Refresh Market Data</span>
-      </button>
-    </div>
+      <!-- Chart body -->
+      <div id="chart-area-wrapper">
 
-    <!-- Stock Table -->
-    <div id="stock-list-wrap">
-      <div id="stock-empty" style="display:none; flex-direction:column; align-items:center; justify-content:center; padding:60px 20px; gap:12px; color:var(--text-muted);">
-        <div class="empty-icon">🔍</div>
-        <p>No stocks match the current filter.<br/>Try a different filter or refresh data.</p>
-      </div>
+        <!-- Drawing Tools Sidebar -->
+        <div id="drawing-toolbar">
 
-      <table id="stock-table" aria-label="Filtered NSE stocks">
-        <thead>
-          <tr>
-            <th id="th-symbol"  data-col="symbol"  tabindex="0" title="NSE Symbol">SYMBOL</th>
-            <th id="th-price"   data-col="price"   tabindex="0" title="Current Price (₹)">PRICE ₹</th>
-            <th id="th-change"  data-col="change_pct" tabindex="0" title="Daily % Change">CHG %</th>
-            <th id="th-mktcap" data-col="marketcap_cr" tabindex="0" title="Market Cap in Crores">MCAP Cr</th>
-          </tr>
-        </thead>
-        <tbody id="stock-tbody">
-          <!-- Skeleton rows while loading -->
-          <tr class="skeleton-row"><td><div class="skeleton-cell" style="width:80px"></div></td><td><div class="skeleton-cell" style="width:55px;margin-left:auto"></div></td><td><div class="skeleton-cell" style="width:50px;margin-left:auto"></div></td><td><div class="skeleton-cell" style="width:60px;margin-left:auto"></div></td></tr>
-          <tr class="skeleton-row"><td><div class="skeleton-cell" style="width:70px"></div></td><td><div class="skeleton-cell" style="width:55px;margin-left:auto"></div></td><td><div class="skeleton-cell" style="width:50px;margin-left:auto"></div></td><td><div class="skeleton-cell" style="width:60px;margin-left:auto"></div></td></tr>
-          <tr class="skeleton-row"><td><div class="skeleton-cell" style="width:90px"></div></td><td><div class="skeleton-cell" style="width:55px;margin-left:auto"></div></td><td><div class="skeleton-cell" style="width:50px;margin-left:auto"></div></td><td><div class="skeleton-cell" style="width:60px;margin-left:auto"></div></td></tr>
-          <tr class="skeleton-row"><td><div class="skeleton-cell" style="width:65px"></div></td><td><div class="skeleton-cell" style="width:55px;margin-left:auto"></div></td><td><div class="skeleton-cell" style="width:50px;margin-left:auto"></div></td><td><div class="skeleton-cell" style="width:60px;margin-left:auto"></div></td></tr>
-          <tr class="skeleton-row"><td><div class="skeleton-cell" style="width:85px"></div></td><td><div class="skeleton-cell" style="width:55px;margin-left:auto"></div></td><td><div class="skeleton-cell" style="width:50px;margin-left:auto"></div></td><td><div class="skeleton-cell" style="width:60px;margin-left:auto"></div></td></tr>
-        </tbody>
-      </table>
-    </div>
-  </aside>
+          <!-- Pointer -->
+          <button class="draw-btn active" data-tool="pointer" title="Pointer / Select (Esc)">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="currentColor">
+              <path d="M3.5 0.5L11.5 7L8 8.2L6.3 13L3.5 0.5Z" />
+            </svg>
+          </button>
 
-  <!-- ══════════════════════════════════════════
-       RIGHT PANEL — Chart
-       ══════════════════════════════════════════ -->
-  <main id="chart-panel">
+          <hr class="draw-sep">
 
-    <!-- Toolbar -->
-    <div id="chart-toolbar">
-      <div id="chart-sym-info">
-        <span id="chart-sym-name">—</span>
-        <span id="chart-sym-exch">NSE</span>
-      </div>
-      <div id="chart-price-info">
-        <span id="chart-price">—</span>
-        <span id="chart-change">—</span>
-      </div>
+          <!-- Trend Line -->
+          <button class="draw-btn" data-tool="trendline" title="Trend Line">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5">
+              <line x1="2" y1="13" x2="12" y2="3" />
+              <circle cx="2" cy="13" r="1.5" fill="currentColor" stroke="none" />
+              <circle cx="12" cy="3" r="1.5" fill="currentColor" stroke="none" />
+            </svg>
+          </button>
 
-      <!-- Timeframe buttons -->
-      <div id="timeframe-btns">
-        <button class="tf-btn" data-range="1mo"  data-interval="1d"  >1M</button>
-        <button class="tf-btn" data-range="3mo"  data-interval="1d"  >3M</button>
-        <button class="tf-btn" data-range="6mo"  data-interval="1d"  >6M</button>
-        <button class="tf-btn active" data-range="1y" data-interval="1d">1Y</button>
-        <button class="tf-btn" data-range="2y"   data-interval="1wk" >2Y</button>
-        <button class="tf-btn" data-range="5y"   data-interval="1wk" >5Y</button>
-      </div>
-    </div>
+          <!-- Horizontal Line -->
+          <button class="draw-btn" data-tool="hline" title="Horizontal Line">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5">
+              <line x1="1" y1="7.5" x2="14" y2="7.5" />
+              <line x1="1" y1="5" x2="1" y2="10" stroke-width="1" />
+              <line x1="14" y1="5" x2="14" y2="10" stroke-width="1" />
+            </svg>
+          </button>
 
-    <!-- Indicator Legend -->
-    <div id="chart-legend">
-      <span class="legend-item">
-        <span class="legend-dot" style="background:#e2e8f0"></span>Price
-      </span>
-      <span class="legend-item">
-        <span class="legend-dot" style="background:#f97316"></span>EMA 10
-      </span>
-      <span class="legend-item">
-        <span class="legend-dot" style="background:#22d3ee"></span>EMA 20
-      </span>
-      <span class="legend-item">
-        <span class="legend-dot" style="background:#a78bfa"></span>EMA 50
-      </span>
-      <span class="legend-item">
-        <span class="legend-dot" style="background:#f59e0b"></span>EMA 200
-      </span>
-      <span class="legend-item" style="margin-left:8px; padding-left:8px; border-left:1px solid var(--border)">
-        <span class="legend-dot" style="background:#38bdf8"></span>Vol MA-50
-      </span>
-    </div>
+          <!-- Vertical Line -->
+          <button class="draw-btn" data-tool="vline" title="Vertical Line">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5">
+              <line x1="7.5" y1="1" x2="7.5" y2="14" />
+              <line x1="5" y1="1" x2="10" y2="1" stroke-width="1" />
+              <line x1="5" y1="14" x2="10" y2="14" stroke-width="1" />
+            </svg>
+          </button>
 
-    <!-- Chart body -->
-    <div id="chart-area-wrapper">
+          <!-- Rectangle -->
+          <button class="draw-btn" data-tool="rectangle" title="Rectangle / Box">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="1.5" y="4" width="12" height="7" rx="0.5" />
+            </svg>
+          </button>
 
-      <!-- Drawing Tools Sidebar -->
-      <div id="drawing-toolbar">
+          <!-- Fibonacci -->
+          <button class="draw-btn" data-tool="fibonacci" title="Fibonacci Retracement">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.2">
+              <line x1="3" y1="2.5" x2="14" y2="2.5" />
+              <line x1="3" y1="5.5" x2="14" y2="5.5" />
+              <line x1="3" y1="7.5" x2="14" y2="7.5" />
+              <line x1="3" y1="9.5" x2="14" y2="9.5" />
+              <line x1="3" y1="12.5" x2="14" y2="12.5" />
+              <line x1="3" y1="1.5" x2="3" y2="13.5" stroke-width="1.6" />
+            </svg>
+          </button>
 
-        <!-- Pointer -->
-        <button class="draw-btn active" data-tool="pointer" title="Pointer / Select (Esc)">
-          <svg width="15" height="15" viewBox="0 0 15 15" fill="currentColor">
-            <path d="M3.5 0.5L11.5 7L8 8.2L6.3 13L3.5 0.5Z"/>
-          </svg>
-        </button>
+          <hr class="draw-sep">
 
-        <hr class="draw-sep">
+          <!-- Undo Last -->
+          <button class="draw-btn" id="undo-drawing-btn" title="Undo Last Drawing (Ctrl+Z)">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M3 7.5 C3 4.5 5.5 2 8.5 2 C11.5 2 14 4.5 14 7.5 C14 10.5 11.5 13 8.5 13" />
+              <polyline points="1,5 3,7.5 5.5,5.5" />
+            </svg>
+          </button>
 
-        <!-- Trend Line -->
-        <button class="draw-btn" data-tool="trendline" title="Trend Line">
-          <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5">
-            <line x1="2" y1="13" x2="12" y2="3"/>
-            <circle cx="2" cy="13" r="1.5" fill="currentColor" stroke="none"/>
-            <circle cx="12" cy="3" r="1.5" fill="currentColor" stroke="none"/>
-          </svg>
-        </button>
+          <!-- Clear All -->
+          <button class="draw-btn" id="clear-drawings-btn" title="Clear All Drawings">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5">
+              <polyline points="1.5,4 13.5,4" />
+              <path d="M5,4 L5,2.5 C5,2.2 5.2,2 5.5,2 L9.5,2 C9.8,2 10,2.2 10,2.5 L10,4" />
+              <path d="M3,4 L4,13.5 L11,13.5 L12,4" />
+              <line x1="6" y1="7" x2="6" y2="11" />
+              <line x1="9" y1="7" x2="9" y2="11" />
+            </svg>
+          </button>
 
-        <!-- Horizontal Line -->
-        <button class="draw-btn" data-tool="hline" title="Horizontal Line">
-          <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5">
-            <line x1="1" y1="7.5" x2="14" y2="7.5"/>
-            <line x1="1" y1="5" x2="1" y2="10" stroke-width="1"/>
-            <line x1="14" y1="5" x2="14" y2="10" stroke-width="1"/>
-          </svg>
-        </button>
+        </div><!-- /drawing-toolbar -->
 
-        <!-- Vertical Line -->
-        <button class="draw-btn" data-tool="vline" title="Vertical Line">
-          <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5">
-            <line x1="7.5" y1="1" x2="7.5" y2="14"/>
-            <line x1="5" y1="1" x2="10" y2="1" stroke-width="1"/>
-            <line x1="5" y1="14" x2="10" y2="14" stroke-width="1"/>
-          </svg>
-        </button>
-
-        <!-- Rectangle -->
-        <button class="draw-btn" data-tool="rectangle" title="Rectangle / Box">
-          <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5">
-            <rect x="1.5" y="4" width="12" height="7" rx="0.5"/>
-          </svg>
-        </button>
-
-        <!-- Fibonacci -->
-        <button class="draw-btn" data-tool="fibonacci" title="Fibonacci Retracement">
-          <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.2">
-            <line x1="3" y1="2.5" x2="14" y2="2.5"/>
-            <line x1="3" y1="5.5" x2="14" y2="5.5"/>
-            <line x1="3" y1="7.5" x2="14" y2="7.5"/>
-            <line x1="3" y1="9.5" x2="14" y2="9.5"/>
-            <line x1="3" y1="12.5" x2="14" y2="12.5"/>
-            <line x1="3" y1="1.5" x2="3" y2="13.5" stroke-width="1.6"/>
-          </svg>
-        </button>
-
-        <hr class="draw-sep">
-
-        <!-- Undo Last -->
-        <button class="draw-btn" id="undo-drawing-btn" title="Undo Last Drawing (Ctrl+Z)">
-          <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M3 7.5 C3 4.5 5.5 2 8.5 2 C11.5 2 14 4.5 14 7.5 C14 10.5 11.5 13 8.5 13"/>
-            <polyline points="1,5 3,7.5 5.5,5.5"/>
-          </svg>
-        </button>
-
-        <!-- Clear All -->
-        <button class="draw-btn" id="clear-drawings-btn" title="Clear All Drawings">
-          <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5">
-            <polyline points="1.5,4 13.5,4"/>
-            <path d="M5,4 L5,2.5 C5,2.2 5.2,2 5.5,2 L9.5,2 C9.8,2 10,2.2 10,2.5 L10,4"/>
-            <path d="M3,4 L4,13.5 L11,13.5 L12,4"/>
-            <line x1="6" y1="7" x2="6" y2="11"/>
-            <line x1="9" y1="7" x2="9" y2="11"/>
-          </svg>
-        </button>
-
-      </div><!-- /drawing-toolbar -->
-
-      <!-- Chart area -->
-      <div id="chart-body">
-        <div id="chart-price-container">
-          <div id="price-chart"></div>
-          <div id="chart-loading" class="visible">
-            <div class="chart-spinner"></div>
+        <!-- Chart area -->
+        <div id="chart-body">
+          <div id="chart-price-container">
+            <div id="price-chart"></div>
+            <div id="chart-loading" class="visible">
+              <div class="chart-spinner"></div>
+            </div>
+            <div id="chart-placeholder">
+              <div class="ph-icon">📊</div>
+              <h3>Select a Stock</h3>
+              <p>Choose a filter from the left panel and click any stock to view its chart with EMA indicators.</p>
+            </div>
           </div>
-          <div id="chart-placeholder">
-            <div class="ph-icon">📊</div>
-            <h3>Select a Stock</h3>
-            <p>Choose a filter from the left panel and click any stock to view its chart with EMA indicators.</p>
+          <div id="chart-volume-container">
+            <div id="volume-chart"></div>
           </div>
-        </div>
-        <div id="chart-volume-container">
-          <div id="volume-chart"></div>
-        </div>
-      </div><!-- /chart-body -->
+        </div><!-- /chart-body -->
 
-    </div><!-- /chart-area-wrapper -->
-  </main>
-</div>
-
-<!-- ── Toast ──────────────────────────────────────────────────── -->
-<div id="toast" role="alert" aria-live="polite">
-  <span class="toast-icon" id="toast-icon">ℹ️</span>
-  <span id="toast-msg"></span>
-</div>
-
-<!-- ── Refresh Modal ──────────────────────────────────────────── -->
-<div id="refresh-modal" role="dialog" aria-modal="true" aria-label="Data Refresh">
-  <div class="refresh-modal-box">
-    <div class="modal-title">
-      <span class="modal-title-icon">🔄</span>
-      Refreshing Market Data
-    </div>
-    <div class="modal-status" id="refresh-modal-status">
-      <div class="chart-spinner" style="width:14px;height:14px;border-width:2px;"></div>
-      <span id="refresh-modal-msg">Starting fetch_data.py…</span>
-    </div>
-    <div id="refresh-log">
-      <span class="log-line">&gt; Initializing…</span>
-    </div>
-    <button class="modal-close-btn" id="refresh-modal-close">Close</button>
+      </div><!-- /chart-area-wrapper -->
+    </main>
   </div>
-</div>
 
-<script src="app.js?v=3"></script>
+  <!-- ── Toast ──────────────────────────────────────────────────── -->
+  <div id="toast" role="alert" aria-live="polite">
+    <span class="toast-icon" id="toast-icon">ℹ️</span>
+    <span id="toast-msg"></span>
+  </div>
+
+  <!-- ── Refresh Modal ──────────────────────────────────────────── -->
+  <div id="refresh-modal" role="dialog" aria-modal="true" aria-label="Data Refresh">
+    <div class="refresh-modal-box">
+      <div class="modal-title">
+        <span class="modal-title-icon">🔄</span>
+        Refreshing Market Data
+      </div>
+      <div class="modal-status" id="refresh-modal-status">
+        <div class="chart-spinner" style="width:14px;height:14px;border-width:2px;"></div>
+        <span id="refresh-modal-msg">Starting fetch_data.py…</span>
+      </div>
+      <div id="refresh-log">
+        <span class="log-line">&gt; Initializing…</span>
+      </div>
+      <button class="modal-close-btn" id="refresh-modal-close">Close</button>
+    </div>
+  </div>
+
+  <!-- ── Watchlist Inline Modal (create / rename) ───────────────── -->
+  <div id="wl-modal" role="dialog" aria-modal="true">
+    <div class="wl-modal-box">
+      <div class="wl-modal-title" id="wl-modal-title">New Watchlist</div>
+      <input id="wl-modal-input" type="text" placeholder="Watchlist name…" maxlength="40" autocomplete="off"
+        spellcheck="false" />
+      <div class="wl-modal-actions">
+        <button id="wl-modal-cancel" class="wl-modal-btn secondary">Cancel</button>
+        <button id="wl-modal-confirm" class="wl-modal-btn primary">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Section Rename Modal ───────────────────────────────────── -->
+  <div id="wl-section-modal" role="dialog" aria-modal="true">
+    <div class="wl-modal-box">
+      <div class="wl-modal-title" id="wl-section-modal-title">Rename Section</div>
+      <input id="wl-section-modal-input" type="text" placeholder="Section name…" maxlength="40" autocomplete="off"
+        spellcheck="false" />
+      <div class="wl-modal-actions">
+        <button id="wl-section-modal-cancel" class="wl-modal-btn secondary">Cancel</button>
+        <button id="wl-section-modal-confirm" class="wl-modal-btn primary">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Watchlist Context Menu ─────────────────────────────────── -->
+  <div id="wl-context-menu" role="menu">
+    <button id="wl-ctx-load-chart" class="wl-ctx-item">
+      <svg width="12" height="12" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5">
+        <polyline points="1,10 5,6 8,9 14,3" />
+      </svg>
+      View Chart
+    </button>
+    <button id="wl-ctx-add-symbol" class="wl-ctx-item">
+      <svg width="12" height="12" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="7.5" y1="1" x2="7.5" y2="14" />
+        <line x1="1" y1="7.5" x2="14" y2="7.5" />
+      </svg>
+      Add Symbol Here
+    </button>
+    <div class="wl-ctx-sep"></div>
+    <button id="wl-ctx-rename-section" class="wl-ctx-item">
+      <svg width="12" height="12" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M10.5 1.5L13.5 4.5L5 13H2V10L10.5 1.5Z" />
+      </svg>
+      Rename Section
+    </button>
+    <button id="wl-ctx-delete-section" class="wl-ctx-item danger">
+      <svg width="12" height="12" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5">
+        <polyline points="1.5,4 13.5,4" />
+        <path d="M5,4 L5,2.5 C5,2.2 5.2,2 5.5,2 L9.5,2 C9.8,2 10,2.2 10,2.5 L10,4" />
+        <path d="M3,4 L4,13.5 L11,13.5 L12,4" />
+      </svg>
+      Delete Section
+    </button>
+    <div class="wl-ctx-sep" id="wl-ctx-symbol-sep"></div>
+    <button id="wl-ctx-remove-symbol" class="wl-ctx-item danger" style="display:none">
+      <svg width="12" height="12" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5">
+        <line x1="2" y1="2" x2="13" y2="13" />
+        <line x1="13" y1="2" x2="2" y2="13" />
+      </svg>
+      Remove Symbol
+    </button>
+  </div>
+
+  <script src="app.js?v=4"></script>
 </body>
+
 </html>
