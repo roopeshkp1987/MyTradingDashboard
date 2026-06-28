@@ -1024,31 +1024,231 @@ body::before {
   box-shadow: 0 0 14px var(--accent-glow), 0 2px 8px rgba(124, 58, 237, 0.3);
 }
 
-/* Indicator legend */
-#chart-legend {
+/* Thin vertical separator between range and interval controls */
+.tf-sep {
+  display: inline-block;
+  width: 1px;
+  height: 18px;
+  background: var(--border-bright);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+/* Interval pill  (1D / 1W / 1M) */
+#interval-toggle {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.iv-btn {
+  padding: 5px 10px;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  position: relative;
+}
+
+.iv-btn:hover {
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.iv-btn.active {
+  background: var(--grad-primary);
+  color: white;
+  box-shadow: inset 0 0 10px rgba(124,58,237,0.3);
+}
+
+/* Divider between interval buttons */
+.iv-btn + .iv-btn {
+  border-left: 1px solid var(--border);
+}
+
+/* ── Indicator Toggle Bar ────────────────────────────────────── */
+#indicator-bar {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 6px 16px;
+  gap: 8px;
+  padding: 6px 14px;
   border-bottom: 1px solid var(--border);
   background: linear-gradient(90deg, rgba(124, 58, 237, 0.05) 0%, rgba(6, 182, 212, 0.03) 100%);
   flex-shrink: 0;
-  flex-wrap: wrap;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 
-.legend-item {
+#indicator-bar::-webkit-scrollbar { display: none; }
+
+.ind-bar-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  padding-right: 4px;
+}
+
+#indicator-chips {
   display: flex;
   align-items: center;
-  gap: 5px;
-  font-size: 10.5px;
-  color: var(--text-secondary);
-  font-weight: 500;
+  gap: 4px;
+  flex: 1;
+  flex-wrap: nowrap;
 }
 
-.legend-dot {
-  width: 20px;
-  height: 2px;
-  border-radius: 1px;
+.ind-bar-sep {
+  width: 1px;
+  height: 16px;
+  background: var(--border);
+  flex-shrink: 0;
+  margin: 0 2px;
+}
+
+/* Individual indicator chip (toggle button) */
+.ind-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px 3px 7px;
+  border-radius: 99px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+  position: relative;
+  letter-spacing: 0.2px;
+}
+
+.ind-chip:hover {
+  border-color: var(--border-bright);
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* ACTIVE state — indicator is ON */
+.ind-chip.active {
+  background: var(--bg-elevated);
+  border-color: var(--border-bright);
+  color: var(--text-primary);
+}
+
+/* INACTIVE state — indicator is OFF */
+.ind-chip:not(.active) {
+  opacity: 0.45;
+  text-decoration: line-through;
+  text-decoration-color: var(--text-muted);
+}
+
+.ind-chip:not(.active):hover {
+  opacity: 0.65;
+}
+
+/* Colored dot inside chip */
+.ind-chip-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: opacity 0.15s;
+}
+
+.ind-chip:not(.active) .ind-chip-dot {
+  opacity: 0.35;
+}
+
+/* Reset button */
+#ind-reset-btn {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border-radius: 99px;
+  border: 1px solid var(--accent-border);
+  background: var(--accent-dim);
+  color: var(--text-accent);
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  cursor: pointer;
+  transition: all var(--transition);
+  text-transform: uppercase;
+}
+
+#ind-reset-btn:hover {
+  background: var(--grad-primary);
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 0 10px var(--accent-glow);
+}
+
+/* Vol peak legend chips (always-on, non-interactive) */
+.vol-peak-legend {
+  cursor: default;
+  background: var(--bg-elevated);
+  border-color: var(--border-bright);
+  color: var(--text-primary);
+  opacity: 1 !important;
+  text-decoration: none !important;
+  pointer-events: none;
+  font-size: 10.5px;
+}
+
+/* ── Volume Scale Toggle (Linear / Log) ─────────────────────── */
+.vol-scale-toggle {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border-bright);
+  border-radius: 99px;
+  overflow: hidden;
+  flex-shrink: 0;
+  margin-left: 2px;
+}
+
+.vol-scale-btn {
+  padding: 3px 9px;
+  font-family: 'Inter', sans-serif;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.vol-scale-btn:hover {
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.vol-scale-btn.active {
+  background: var(--grad-primary);
+  color: white;
+  box-shadow: none;
+}
+
+/* Divider between the two buttons */
+.vol-scale-btn + .vol-scale-btn {
+  border-left: 1px solid var(--border);
 }
 
 /* Chart containers */
@@ -1058,19 +1258,42 @@ body::before {
   flex-direction: column;
   min-height: 0;
   position: relative;
+  gap: 0;               /* no gap between price and volume panels */
 }
 
 #chart-price-container {
   flex: 1;
   min-height: 0;
   position: relative;
+  overflow: hidden;
 }
 
 #chart-volume-container {
   height: 130px;
   min-height: 130px;
+  flex-shrink: 0;
   position: relative;
+  overflow: hidden;
   border-top: 1px solid var(--border);
+}
+
+/* LOG scale badge — shown inside volume panel when log mode is active */
+#vol-log-badge {
+  position: absolute;
+  top: 5px;
+  left: 8px;
+  z-index: 10;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--grad-primary);
+  color: white;
+  font-family: 'Inter', sans-serif;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  pointer-events: none;
+  text-transform: uppercase;
+  box-shadow: 0 0 8px var(--accent-glow);
 }
 
 #price-chart,

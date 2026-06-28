@@ -43,6 +43,38 @@
   let allDrawings = [];          // array of attached primitives
   let previewPrim = null;        // live-preview primitive (always attached)
 
+  // Raw volume data cache — needed to re-apply log/linear transform without refetching
+  let rawVolData   = [];   // [{ time, value, color }]
+  let rawVolMaData = [];   // [{ time, value }]
+
+  // Volume peak markers — updated each chart load
+  let volYearHigh   = { time: null, value: 0 }; // highest vol bar in current calendar year
+  let volQuarterHigh = { time: null, value: 0 }; // highest vol bar in current quarter
+
+  // Indicator visibility state (persisted to localStorage)
+  const IND_STORAGE_KEY = 'nse_indicator_state';
+  const indicatorState = (() => {
+    try {
+      const raw = localStorage.getItem(IND_STORAGE_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch (_) { }
+    return { ema10: true, ema20: true, ema50: true, ema200: true, volma: true, volume: true };
+  })();
+
+  function _saveIndicatorState() {
+    try { localStorage.setItem(IND_STORAGE_KEY, JSON.stringify(indicatorState)); } catch (_) { }
+  }
+
+  // Volume scale mode: 'linear' | 'log'  (persisted)
+  const VOL_SCALE_KEY = 'nse_vol_scale';
+  let volScaleMode = (() => {
+    try { return localStorage.getItem(VOL_SCALE_KEY) || 'linear'; } catch (_) { return 'linear'; }
+  })();
+
+  function _saveVolScaleMode() {
+    try { localStorage.setItem(VOL_SCALE_KEY, volScaleMode); } catch (_) { }
+  }
+
   /* ── DOM refs ──────────────────────────────────────────────────────── */
   const $ = id => document.getElementById(id);
   const filterSelect = $('filter-select');
@@ -451,7 +483,7 @@
     },
     rightPriceScale: {
       borderColor: 'rgba(255,255,255,0.07)',
-      scaleMargins: { top: 0.1, bottom: 0.05 },
+      scaleMargins: { top: 0.1, bottom: 0 },   // bottom:0 keeps bars flush with volume panel
     },
     timeScale: {
       borderColor: 'rgba(255,255,255,0.07)',
@@ -524,7 +556,7 @@
       crosshairMarkerVisible: false,
     });
 
-    // Volume chart (separate)
+    // Volume chart (separate) — time axis hidden so price+volume are flush
     volumeChart = LightweightCharts.createChart(volumeEl, {
       ...CHART_OPTS,
       width: volumeEl.clientWidth,
@@ -532,6 +564,10 @@
       rightPriceScale: {
         borderColor: 'rgba(255,255,255,0.07)',
         scaleMargins: { top: 0.1, bottom: 0 },
+      },
+      timeScale: {
+        ...CHART_OPTS.timeScale,
+        visible: false,   // hides duplicate time axis — alignment handled by price chart
       },
     });
 
@@ -607,20 +643,22 @@
       }
     });
 
-    // Sync time scale scroll/zoom
+    // Sync time scale scroll/zoom — bidirectional, drift-free
     let isSyncing = false;
-    priceChart.timeScale().subscribeVisibleLogicalRangeChange(range => {
-      if (isSyncing) return;
+    const syncToVol = range => {
+      if (isSyncing || !range) return;
       isSyncing = true;
-      volumeChart.timeScale().setVisibleLogicalRange(range);
+      try { volumeChart.timeScale().setVisibleLogicalRange(range); } catch (_) { }
       isSyncing = false;
-    });
-    volumeChart.timeScale().subscribeVisibleLogicalRangeChange(range => {
-      if (isSyncing) return;
+    };
+    const syncToPrice = range => {
+      if (isSyncing || !range) return;
       isSyncing = true;
-      priceChart.timeScale().setVisibleLogicalRange(range);
+      try { priceChart.timeScale().setVisibleLogicalRange(range); } catch (_) { }
       isSyncing = false;
-    });
+    };
+    priceChart.timeScale().subscribeVisibleLogicalRangeChange(syncToVol);
+    volumeChart.timeScale().subscribeVisibleLogicalRangeChange(syncToPrice);
 
     // Resize observer
     const ro = new ResizeObserver(() => {
@@ -1039,14 +1077,52 @@
       ema50Series.setData(toTimeSeries(times, emaValues50));
       ema200Series.setData(toTimeSeries(times, emaValues200));
 
-      volSeries.setData(volumes);
-      volMaSeries.setData(
-        times.map((t, i) => ({ time: t, value: volMa50[i] })).filter(p => p.value !== null)
-      );
+      // Cache raw volume data for log/linear switching
+      rawVolData   = volumes;
+      rawVolMaData = times.map((t, i) => ({ time: t, value: volMa50[i] })).filter(p => p.value !== null);
+
+      // ── Detect year-high & quarter-high volume bars ──────────────────────
+      const now = new Date();
+      const curYear    = now.getFullYear();
+      const curQuarter = Math.floor(now.getMonth() / 3);   // 0-3
+
+      // Year boundary: Jan 1 of current year (Unix seconds)
+      const yearStart = Date.UTC(curYear, 0, 1) / 1000;
+      // Quarter boundary
+      const qStartMonth = curQuarter * 3;
+      const quarterStart = Date.UTC(curYear, qStartMonth, 1) / 1000;
+
+      volYearHigh    = { time: null, value: 0 };
+      volQuarterHigh = { time: null, value: 0 };
+
+      rawVolData.forEach(bar => {
+        const ts = bar.time;  // Unix seconds
+        if (ts >= yearStart    && bar.value > volYearHigh.value)    volYearHigh    = bar;
+        if (ts >= quarterStart && bar.value > volQuarterHigh.value) volQuarterHigh = bar;
+      });
+
+      // Color year-high and quarter-high bars distinctly
+      rawVolData = rawVolData.map(bar => {
+        if (bar.time === volYearHigh.time    && bar.value === volYearHigh.value)
+          return { ...bar, color: 'rgba(234,179,8,0.90)' };    // gold  — Year High
+        if (bar.time === volQuarterHigh.time && bar.value === volQuarterHigh.value)
+          return { ...bar, color: 'rgba(249,115,22,0.90)' };   // orange — Quarter High
+        return bar;
+      });
+      // ─────────────────────────────────────────────────────────────────────
+
+      volSeries.setData(rawVolData);
+      volMaSeries.setData(rawVolMaData);
 
       // Fit content
       priceChart.timeScale().fitContent();
       volumeChart.timeScale().fitContent();
+
+      // Re-apply indicator visibility state (keeps hidden indicators off after stock switch)
+      applyIndicatorVisibility();
+      // Re-apply volume scale mode (keeps log/linear after stock switch);
+      // applyVolScaleMode() internally calls applyVolHighlights() at the end
+      applyVolScaleMode();
 
       // Update toolbar
       const last = candles[candles.length - 1];
@@ -1071,17 +1147,295 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════
-     TIMEFRAME BUTTONS
+     TIMEFRAME BUTTONS (range)
   ═══════════════════════════════════════════════════════════════════ */
+
+  /** Sync the iv-btn active state to whichever interval is current */
+  function _syncIntervalToggle(iv) {
+    document.querySelectorAll('.iv-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.iv === iv));
+  }
+
   document.querySelectorAll('.tf-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      currentRange = btn.dataset.range;
+      currentRange    = btn.dataset.range;
       currentInterval = btn.dataset.interval;
+      _syncIntervalToggle(currentInterval);
       if (activeSymbol) loadChart(activeSymbol, currentRange, currentInterval);
     });
   });
+
+  /* ═══════════════════════════════════════════════════════════════════
+     INTERVAL TOGGLE  (1D / 1W / 1M  candle size)
+  ═══════════════════════════════════════════════════════════════════ */
+  document.querySelectorAll('.iv-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const iv = btn.dataset.iv;
+      if (iv === currentInterval) return;   // no-op if already active
+      currentInterval = iv;
+      _syncIntervalToggle(iv);
+      if (activeSymbol) loadChart(activeSymbol, currentRange, currentInterval);
+    });
+  });
+
+  /* ═══════════════════════════════════════════════════════════════════
+     INDICATOR VISIBILITY
+  ═══════════════════════════════════════════════════════════════════ */
+
+  /** Map indicatorState keys → the series objects they control */
+  function _getSeriesForKey(key) {
+    switch (key) {
+      case 'ema10':  return ema10Series;
+      case 'ema20':  return ema20Series;
+      case 'ema50':  return ema50Series;
+      case 'ema200': return ema200Series;
+      case 'volma':  return volMaSeries;
+      case 'volume': return volSeries;
+      default:       return null;
+    }
+  }
+
+  /** Apply current indicatorState to the chart series visibility */
+  function applyIndicatorVisibility() {
+    Object.keys(indicatorState).forEach(key => {
+      const enabled = indicatorState[key];
+      // EMA/VolMA lines on priceChart / volumeChart
+      if (key === 'volume') {
+        // Show/hide the entire volume chart panel
+        const volContainer = $('chart-volume-container');
+        if (volContainer) volContainer.style.display = enabled ? '' : 'none';
+        if (volumeChart) volumeChart.resize(
+          $('volume-chart').clientWidth,
+          $('volume-chart').clientHeight
+        );
+        // Also hide vol MA when volume hidden
+        if (!enabled && volMaSeries) {
+          try { volMaSeries.applyOptions({ visible: false }); } catch (_) { }
+        } else if (enabled && volMaSeries) {
+          // Re-show vol MA only if its own toggle is on
+          try { volMaSeries.applyOptions({ visible: indicatorState.volma }); } catch (_) { }
+        }
+      } else {
+        const series = _getSeriesForKey(key);
+        if (series) {
+          try {
+            // Volume MA is hidden if volume panel itself is off
+            const actualVisible = key === 'volma'
+              ? (enabled && indicatorState.volume)
+              : enabled;
+            series.applyOptions({ visible: actualVisible });
+          } catch (_) { }
+        }
+      }
+      // Sync chip UI
+      const chip = document.querySelector(`.ind-chip[data-ind="${key}"]`);
+      if (chip) chip.classList.toggle('active', !!enabled);
+    });
+
+    // Trigger a chart resize so the price chart fills freed space if volume hidden
+    if (priceChart) priceChart.resize(
+      $('price-chart').clientWidth,
+      $('price-chart').clientHeight
+    );
+  }
+
+  /**
+   * Apply volume scale mode.
+   *
+   * LightweightCharts v5 does NOT allow changing priceFormat.type after series
+   * creation, and HistogramSeries silently ignores the native log price-scale
+   * mode.  The only reliable approach is to:
+   *   1. Remove the existing series.
+   *   2. Recreate them with the correct priceFormat.
+   *   3. Re-apply data (raw or log-transformed).
+   */
+  function applyVolScaleMode() {
+    // Sync button UI regardless of data state
+    document.querySelectorAll('.vol-scale-btn').forEach(btn =>
+      btn.classList.toggle('active', btn.dataset.scale === volScaleMode));
+
+    if (!volumeChart || rawVolData.length === 0) return;
+
+    const isLog = volScaleMode === 'log';
+
+    /* ── Helper: format a log10-transformed axis value as real volume ── */
+    const logAxisFmt = n => {
+      const real = Math.pow(10, n) - 1;
+      if (real >= 1e7) return `${(real / 1e7).toFixed(1)}Cr`;
+      if (real >= 1e5) return `${(real / 1e5).toFixed(1)}L`;
+      if (real >= 1e3) return `${(real / 1e3).toFixed(1)}K`;
+      return real < 1 ? '0' : Math.round(real).toLocaleString('en-IN');
+    };
+
+    /* ── Remove old series ─────────────────────────────────────────── */
+    try { volumeChart.removeSeries(volMaSeries); } catch (_) { }
+    try { volumeChart.removeSeries(volSeries);   } catch (_) { }
+
+    /* ── Recreate with appropriate priceFormat ─────────────────────── */
+    if (isLog) {
+      volSeries = volumeChart.addSeries(LightweightCharts.HistogramSeries, {
+        priceScaleId: 'right',
+        priceFormat: { type: 'custom', formatter: logAxisFmt, minMove: 0.0001 },
+      });
+      volMaSeries = volumeChart.addSeries(LightweightCharts.LineSeries, {
+        color: '#38bdf8',
+        lineWidth: 2,
+        priceScaleId: 'right',
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+        priceFormat: { type: 'custom', formatter: logAxisFmt, minMove: 0.0001 },
+      });
+    } else {
+      volSeries = volumeChart.addSeries(LightweightCharts.HistogramSeries, {
+        color: '#1e3a5f',
+        priceFormat: { type: 'volume' },
+        priceScaleId: 'right',
+      });
+      volMaSeries = volumeChart.addSeries(LightweightCharts.LineSeries, {
+        color: '#38bdf8',
+        lineWidth: 2,
+        priceScaleId: 'right',
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+      });
+    }
+
+    /* ── Load data (raw or log-transformed) ────────────────────────── */
+    const logT = v => Math.log10(v + 1);   // log10(v+1) — safe for v=0
+
+    if (isLog) {
+      volSeries.setData(rawVolData.map(bar => ({ ...bar, value: logT(bar.value) })));
+      volMaSeries.setData(rawVolMaData.map(pt  => ({ ...pt,  value: logT(pt.value)  })));
+    } else {
+      volSeries.setData(rawVolData);
+      volMaSeries.setData(rawVolMaData);
+    }
+
+    /* ── Show/hide LOG badge on the volume panel ───────────────────── */
+    let badge = document.getElementById('vol-log-badge');
+    if (isLog) {
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.id = 'vol-log-badge';
+        badge.textContent = 'LOG';
+        const volContainer = $('chart-volume-container') || $('volume-chart')?.parentElement;
+        if (volContainer) volContainer.appendChild(badge);
+      }
+    } else {
+      if (badge) badge.remove();
+    }
+
+    // Re-apply indicator visibility for the new series objects
+    applyIndicatorVisibility();
+
+    try { volumeChart.timeScale().fitContent(); } catch (_) { }
+
+    // Re-draw peak lines on the new series
+    applyVolHighlights();
+  }
+
+  /**
+   * Draw horizontal reference lines on the volume chart for:
+   *   ● Year-high volume  (gold dashed line)
+   *   ● Quarter-high volume (orange dashed line)
+   * Safe to call multiple times — price lines are recreated each time.
+   */
+  function applyVolHighlights() {
+    if (!volSeries || rawVolData.length === 0) return;
+
+    const isLog = volScaleMode === 'log';
+    const logT  = v => Math.log10(v + 1);
+
+    /** Format a raw volume as a human-readable string */
+    const fmtVol = v => {
+      if (v >= 1e7) return `${(v / 1e7).toFixed(2)} Cr`;
+      if (v >= 1e5) return `${(v / 1e5).toFixed(2)} L`;
+      if (v >= 1e3) return `${(v / 1e3).toFixed(1)} K`;
+      return v.toLocaleString('en-IN');
+    };
+
+    /**
+     * Add a price line to volSeries.
+     * @param {number} rawValue  — actual volume count
+     * @param {string} color
+     * @param {string} label
+     */
+    const addLine = (rawValue, color, label) => {
+      if (!rawValue || rawValue <= 0) return;
+      const price = isLog ? logT(rawValue) : rawValue;
+      try {
+        volSeries.createPriceLine({
+          price,
+          color,
+          lineWidth: 1,
+          lineStyle: 1,   // 1 = Dotted
+          axisLabelVisible: true,
+          title: `${label}: ${fmtVol(rawValue)}`,
+          axisLabelColor: color,
+          axisLabelTextColor: '#fff',
+        });
+      } catch (_) { }
+    };
+
+    // Year-high line  — gold
+    if (volYearHigh.value > 0) {
+      addLine(volYearHigh.value, '#eab308', 'Yr Hi');
+    }
+
+    // Quarter-high line — only draw if it differs from year-high
+    if (volQuarterHigh.value > 0 && volQuarterHigh.time !== volYearHigh.time) {
+      addLine(volQuarterHigh.value, '#f97316', 'Qtr Hi');
+    }
+  }
+
+  /** Wire up indicator toggle chips */
+  function initIndicatorBar() {
+    document.querySelectorAll('.ind-chip[data-ind]').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const key = chip.dataset.ind;
+        indicatorState[key] = !indicatorState[key];
+        _saveIndicatorState();
+        applyIndicatorVisibility();
+        const name = chip.textContent.trim();
+        const on = indicatorState[key];
+        showToast(on ? '👁' : '🙈', `${name} ${on ? 'enabled' : 'disabled'}`, 'success');
+      });
+    });
+
+    const resetBtn = $('ind-reset-btn');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', () => {
+        Object.keys(indicatorState).forEach(k => { indicatorState[k] = true; });
+        _saveIndicatorState();
+        applyIndicatorVisibility();
+        // Also reset scale to linear
+        volScaleMode = 'linear';
+        _saveVolScaleMode();
+        applyVolScaleMode();
+        showToast('✅', 'All indicators enabled', 'success');
+      });
+    }
+
+    // Volume scale toggle (Linear / Log)
+    document.querySelectorAll('.vol-scale-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const newScale = btn.dataset.scale;
+        if (newScale === volScaleMode) return;  // no-op if already active
+        volScaleMode = newScale;
+        _saveVolScaleMode();
+        applyVolScaleMode();
+        showToast(newScale === 'log' ? '📐' : '📏', `Volume: ${newScale === 'log' ? 'Logarithmic' : 'Linear'} scale`, 'success');
+      });
+    });
+
+    // Apply persisted state immediately on load
+    applyIndicatorVisibility();
+    applyVolScaleMode();
+  }
 
   /* ═══════════════════════════════════════════════════════════════════
      FILTER CHANGE
@@ -2016,6 +2370,7 @@
     initCharts();
     loadStocks();
     initDrawingToolbar();
+    initIndicatorBar();          // indicator toggles (after initCharts)
     initScreenerStarBtn();  // register once — never accumulates
     initTabs();
     WatchlistUI.init();
