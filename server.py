@@ -75,6 +75,8 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
             self._handle_refresh_status()
         elif path == "/api/chart":
             self._handle_chart()
+        elif path == "/api/deepdive/list":
+            self._handle_deepdive_list()
         else:
             if path in ("/", ""):
                 self.path = "/index.html"
@@ -234,6 +236,18 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
                 continue
 
         self._send_json({"error": "Failed to fetch chart data from Yahoo Finance"}, status=502)
+
+    # ── GET /api/deepdive/list ───────────────────────────────────────────────────
+    def _handle_deepdive_list(self):
+        """Return a sorted list of available ticker summary names from stock_db/."""
+        stock_db = APP_DIR / "stock_db"
+        tickers = []
+        if stock_db.is_dir():
+            for f in sorted(stock_db.iterdir()):
+                if f.suffix == ".html" and f.stem.endswith("_summary"):
+                    ticker = f.stem[:-len("_summary")]  # strip _summary suffix
+                    tickers.append(ticker)
+        self._send_json({"tickers": tickers})
 
 
 # ─── Entry Point ──────────────────────────────────────────────────────────────

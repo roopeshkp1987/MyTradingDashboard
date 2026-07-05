@@ -7,7 +7,7 @@
   <title>NSE Market Dashboard — India</title>
   <meta name="description"
     content="Professional trading dashboard for NSE Indian stock market with real-time filters, TradingView Lightweight Charts, and a fully featured watchlist." />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=2" />
   <!-- TradingView Lightweight Charts v5 -->
   <script src="https://unpkg.com/lightweight-charts@5.0.7/dist/lightweight-charts.standalone.production.js"></script>
 </head>
@@ -15,6 +15,54 @@
 <body>
 
   <div id="app">
+
+    <!-- ══════════════════════════════════════════
+       NAV RAIL — Icon navigation (Playbook-style)
+       ══════════════════════════════════════════ -->
+    <nav id="nav-rail">
+      <div class="nav-rail-logo">📈</div>
+
+      <!-- Screener tab -->
+      <button class="nav-rail-btn active" id="tab-screener" data-tab="screener"
+              data-label="Screener" title="Screener" aria-label="Screener">
+        <svg width="17" height="17" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="1" y="1" width="13" height="13" rx="1.5" />
+          <line x1="1" y1="5" x2="14" y2="5" />
+          <line x1="5" y1="5" x2="5" y2="14" />
+        </svg>
+      </button>
+
+      <!-- Watchlist tab -->
+      <button class="nav-rail-btn" id="tab-watchlist" data-tab="watchlist"
+              data-label="Watchlist" title="Watchlist" aria-label="Watchlist">
+        <svg width="17" height="17" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M7.5 1.5L9.18 5.6L13.5 6.18L10.5 9.1L11.36 13.5L7.5 11.4L3.64 13.5L4.5 9.1L1.5 6.18L5.82 5.6Z" />
+        </svg>
+      </button>
+
+      <!-- Stock Deepdive tab -->
+      <button class="nav-rail-btn" id="tab-deepdive" data-tab="deepdive"
+              data-label="Deep Dive" title="Stock Deep Dive" aria-label="Stock Deep Dive">
+        <svg width="17" height="17" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="6.5" cy="6.5" r="4.5" />
+          <line x1="10" y1="10" x2="14" y2="14" stroke-width="2" stroke-linecap="round" />
+          <line x1="4.5" y1="6.5" x2="8.5" y2="6.5" stroke-width="1.2" />
+          <line x1="6.5" y1="4.5" x2="6.5" y2="8.5" stroke-width="1.2" />
+        </svg>
+      </button>
+
+      <div class="nav-rail-spacer"></div>
+
+      <div class="nav-rail-bottom">
+        <!-- Settings placeholder -->
+        <button class="nav-rail-btn" data-label="Settings" title="Settings" aria-label="Settings">
+          <svg width="16" height="16" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="7.5" cy="7.5" r="2.5"/>
+            <path d="M7.5 1v1.5M7.5 12.5V14M1 7.5h1.5M12.5 7.5H14M2.9 2.9l1.1 1.1M11 11l1.1 1.1M11 4l-1.1 1.1M2.9 12.1l1.1-1.1"/>
+          </svg>
+        </button>
+      </div>
+    </nav>
 
     <!-- ══════════════════════════════════════════
        LEFT PANEL — Sidebar
@@ -36,22 +84,11 @@
         </div>
       </div>
 
-      <!-- ── Tab Bar ──────────────────────────── -->
+      <!-- Tab bar hidden — navigation via nav rail -->
       <div id="sidebar-tabs">
-        <button class="sidebar-tab active" id="tab-screener" data-tab="screener">
-          <svg width="13" height="13" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6">
-            <rect x="1" y="1" width="13" height="13" rx="1.5" />
-            <line x1="1" y1="5" x2="14" y2="5" />
-            <line x1="5" y1="5" x2="5" y2="14" />
-          </svg>
-          Screener
-        </button>
-        <button class="sidebar-tab" id="tab-watchlist" data-tab="watchlist">
-          <svg width="13" height="13" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6">
-            <path d="M7.5 1.5L9.18 5.6L13.5 6.18L10.5 9.1L11.36 13.5L7.5 11.4L3.64 13.5L4.5 9.1L1.5 6.18L5.82 5.6Z" />
-          </svg>
-          Watchlist
-        </button>
+        <button class="sidebar-tab active" id="tab-screener-legacy" data-tab="screener">Screener</button>
+        <button class="sidebar-tab" id="tab-watchlist-legacy" data-tab="watchlist">Watchlist</button>
+        <button class="sidebar-tab" id="tab-deepdive-legacy" data-tab="deepdive">Deep Dive</button>
       </div>
 
       <!-- ══════════════════════════════════════════
@@ -65,9 +102,9 @@
 
           <div class="select-wrapper">
             <select id="filter-select" aria-label="Select stock filter">
-              <option value="uptrend">📈 Uptrend — EMA(20) &gt; EMA(50) &gt; EMA(200)</option>
-              <option value="perf3m">🚀 3M Performance — 3M Return &gt; 30%</option>
-              <option value="volspike">⚡ Volume Spike — RelVol &gt; 3×, Change &gt; 3%</option>
+              <option value="uptrend">📈 Tending</option>
+              <option value="perf3m">🚀 3M Performance</option>
+              <option value="volspike">⚡ Relative Volume</option>
             </select>
           </div>
 
@@ -240,12 +277,88 @@
 
       </div><!-- /watchlist-panel -->
 
+      <!-- ══════════════════════════════════════════
+         STOCK DEEPDIVE PANEL
+         ══════════════════════════════════════════ -->
+      <div id="deepdive-panel" style="display:none; flex-direction:column; flex:1; overflow:hidden;">
+
+        <!-- Hero search block -->
+        <div id="dd-hero">
+          <div id="dd-hero-icon">
+            <div id="dd-hero-ring"></div>
+            <svg width="22" height="22" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4">
+              <circle cx="6.5" cy="6.5" r="4.5" />
+              <line x1="10" y1="10" x2="14" y2="14" stroke-width="2.2" stroke-linecap="round" />
+              <line x1="4.5" y1="6.5" x2="8.5" y2="6.5" stroke-width="1.3" />
+              <line x1="6.5" y1="4.5" x2="6.5" y2="8.5" stroke-width="1.3" />
+            </svg>
+          </div>
+          <div class="dd-hero-title">Stock Deep Dive</div>
+          <div class="dd-hero-sub">Enter a ticker to load its full research summary</div>
+
+          <!-- Search input -->
+          <div id="dd-search-card">
+            <div id="dd-search-wrap">
+              <svg class="dd-search-icon" width="14" height="14" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6">
+                <circle cx="6.5" cy="6.5" r="4.5" />
+                <line x1="10" y1="10" x2="14" y2="14" stroke-width="2" stroke-linecap="round" />
+              </svg>
+              <input id="dd-ticker-input" type="text" placeholder="e.g. MARUTI, DIXON…"
+                autocomplete="off" spellcheck="false" autocapitalize="characters" />
+              <button id="dd-search-btn" title="Search ticker">
+                <svg width="14" height="14" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="2.2">
+                  <polyline points="4,3 11,7.5 4,12" />
+                </svg>
+              </button>
+            </div>
+            <div id="dd-hint">Press <kbd>Enter</kbd> or click ▶ to search</div>
+          </div>
+        </div>
+
+        <!-- Empty / idle state -->
+        <div id="dd-empty">
+          <div class="dd-empty-lines">
+            <div class="dd-empty-line" style="width:80%"></div>
+            <div class="dd-empty-line" style="width:60%"></div>
+            <div class="dd-empty-line" style="width:70%"></div>
+            <div class="dd-empty-line" style="width:50%"></div>
+          </div>
+          <p id="dd-empty-msg">No ticker loaded yet</p>
+        </div>
+
+      </div><!-- /deepdive-panel -->
+
+
     </aside>
 
     <!-- ══════════════════════════════════════════
        RIGHT PANEL — Chart
        ══════════════════════════════════════════ -->
     <main id="chart-panel">
+
+      <!-- ══════════════════════════════════════════
+         DEEPDIVE CONTENT AREA (hidden unless deepdive tab active)
+         ══════════════════════════════════════════ -->
+      <div id="deepdive-content">
+        <div id="dd-content-header">
+          <div id="dd-content-sym">—</div>
+          <div id="dd-content-label">Research Summary</div>
+          <button id="dd-back-btn" title="Back to search">
+            <svg width="12" height="12" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="10,3 4,7.5 10,12" />
+            </svg>
+            Back
+          </button>
+        </div>
+        <div id="dd-error-state" style="display:none;">
+          <div class="dd-error-icon">⚠️</div>
+          <div class="dd-error-title">Info Is Not Available</div>
+          <p class="dd-error-msg">No research summary found for this ticker.<br/>Try another symbol from the available list.</p>
+        </div>
+        <div id="dd-iframe-wrap" style="display:none;">
+          <iframe id="dd-iframe" title="Stock Research Summary" src=""></iframe>
+        </div>
+      </div>
 
       <!-- Toolbar -->
       <div id="chart-toolbar">
@@ -521,7 +634,7 @@
     </button>
   </div>
 
-  <script src="app.js?v=4"></script>
+  <script src="app.js?v=8"></script>
 </body>
 
 </html>

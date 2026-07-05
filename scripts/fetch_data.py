@@ -39,7 +39,7 @@ except ImportError as e:
 try:
     from curl_cffi import requests as cffi_requests
     YF_SESSION = cffi_requests.Session(impersonate="chrome")
-    _session_label = "curl_cffi (Chrome impersonation) ✓"
+    _session_label = "curl_cffi (Chrome impersonation)"
 except ImportError:
     YF_SESSION = None
     _session_label = "standard requests (install curl_cffi to avoid rate limits)"
@@ -48,7 +48,7 @@ except ImportError:
 SCRIPT_DIR = Path(__file__).parent.resolve()
 APP_DIR    = SCRIPT_DIR.parent
 ROOT_DIR   = APP_DIR.parent
-EXCEL_PATH = ROOT_DIR / "NSE_STOCK_UNIVERSE.xlsx"
+EXCEL_PATH = SCRIPT_DIR / "NSE_STOCK_UNIVERSE.xlsx"
 OUTPUT_DIR = APP_DIR / "data"
 OUTPUT_PATH = OUTPUT_DIR / "stocks.json"
 
@@ -66,7 +66,7 @@ print_lock = threading.Lock()
 def log(msg: str):
     ts = datetime.now().strftime("%H:%M:%S")
     with print_lock:
-        print(f"[{ts}] {msg}", flush=True)
+        print(f"[{ts}] [{msg}]", flush=True)
 
 
 # ─── Excel Reader ─────────────────────────────────────────────────────────────
@@ -165,7 +165,11 @@ def process_batch(symbols: list[str], yf_syms: list[str]) -> dict:
             vol   = df["Volume"].astype(float)
 
             last_price  = float(close.iloc[-1])
-            prev_price  = float(close.iloc[-2])
+            prev_price  = float(close.iloc[-2]) if len(close) >= 2 else last_price
+
+            # ── change_pct: use last two rows from history as fallback.
+            # The real-time override (regularMarketChangePercent) is fetched
+            # in the market-cap pass below, where we already call fast_info.
             change_pct  = round(((last_price - prev_price) / prev_price) * 100, 2) if prev_price else 0.0
 
             ema20  = round(float(ema(close, 20).iloc[-1]), 2)
@@ -197,21 +201,41 @@ def process_batch(symbols: list[str], yf_syms: list[str]) -> dict:
     return results
 
 
-# ─── Market Cap Fetcher ───────────────────────────────────────────────────────
-def fetch_market_cap(sym_pair: tuple[str, str]) -> tuple[str, float | None]:
-    """Fetch market cap (INR crores) for a single ticker via fast_info."""
+# ─── Market Cap + Real-Time Price Fetcher ────────────────────────────────────────────────────────────────────
+def fetch_market_cap(sym_pair: tuple[str, str]) -> tuple[str, float | None, float | None, float | None]:
+    """Fetch market cap, real-time price and today's change% for a single ticker.
+
+    Returns (symbol, marketcap_cr, realtime_price, realtime_change_pct)
+    Any value may be None if unavailable.
+    """
     symbol, yf_sym = sym_pair
     for attempt in range(2):
         try:
             fi = yf.Ticker(yf_sym, session=YF_SESSION).fast_info
+
+            # Market cap
             mc = getattr(fi, "market_cap", None)
-            if mc and mc > 0:
-                # Yahoo Finance returns INR for .NS tickers
-                mc_cr = round(mc / 10_000_000, 0)  # 1 crore = 10^7
-                return symbol, mc_cr
+            mc_cr = round(mc / 10_000_000, 0) if (mc and mc > 0) else None
+
+            # Real-time price (regularMarketPrice = last traded price)
+            rt_price = getattr(fi, "last_price", None)
+            if rt_price is not None:
+                rt_price = round(float(rt_price), 2)
+
+            # Real-time day change %  (regularMarketChangePercent)
+            rt_chg = getattr(fi, "regular_market_change_percent", None)
+            if rt_chg is None:
+                # Fallback: compute from previous close vs current price
+                prev_close = getattr(fi, "previous_close", None)
+                if rt_price and prev_close and prev_close > 0:
+                    rt_chg = round(((rt_price - prev_close) / prev_close) * 100, 2)
+            else:
+                rt_chg = round(float(rt_chg), 2)
+
+            return symbol, mc_cr, rt_price, rt_chg
         except Exception:
             time.sleep(1)
-    return symbol, None
+    return symbol, None, None, None
 
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
@@ -240,27 +264,33 @@ def main():
         log(f"  Batch {bnum:>3}/{n_batch}  [{b_syms[0]} … {b_syms[-1]}]")
         result = process_batch(b_syms, b_yf)
         all_data.update(result)
-        log(f"           → {len(result):>3} fetched  |  total: {len(all_data)}")
+        log(f"           -> {len(result):>3} fetched  |  total: {len(all_data)}")
         if idx + BATCH_SIZE < total:
             time.sleep(SLEEP_BETWEEN_BATCHES)
 
     log(f"Price/indicator data ready for {len(all_data)} stocks")
 
-    # 3. Fetch market cap only for stocks with price > 30
+    # 3. Fetch real-time price, change% and market cap for all stocks via fast_info.
+    #    Market cap is only meaningful for price > ₹30, but we fetch all so that
+    #    change_pct and price are always current (matches Yahoo Finance / TradingView).
     mc_candidates = [
         (s, d["yf_symbol"])
         for s, d in all_data.items()
-        if d["price"] > 30
     ]
-    log(f"Fetching market cap for {len(mc_candidates)} stocks (price > ₹30)…")
+    log(f"Fetching real-time price/change% + market cap for {len(mc_candidates)} stocks…")
 
     done = 0
     with ThreadPoolExecutor(max_workers=MC_WORKERS) as ex:
         futures = {ex.submit(fetch_market_cap, pair): pair for pair in mc_candidates}
         for fut in as_completed(futures):
-            sym, mc = fut.result()
+            sym, mc, rt_price, rt_chg = fut.result()
             if sym in all_data:
                 all_data[sym]["marketcap_cr"] = mc
+                # Override stale historical price/change with real-time values
+                if rt_price is not None:
+                    all_data[sym]["price"] = rt_price
+                if rt_chg is not None:
+                    all_data[sym]["change_pct"] = rt_chg
             done += 1
             if done % 200 == 0:
                 log(f"  Market cap progress: {done}/{len(mc_candidates)}")
@@ -278,7 +308,7 @@ def main():
     with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
         json.dump(output, f, ensure_ascii=False, indent=2)
 
-    log(f"✓ Saved {len(stocks_list)} stocks → {OUTPUT_PATH}")
+    log(f" Saved {len(stocks_list)} stocks -> {OUTPUT_PATH}")
     log("=" * 55)
     log("  Done! Refresh your browser to see updated data.")
     log("=" * 55)

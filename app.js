@@ -150,6 +150,8 @@
         }
 
         applyFilter();
+        // Re-render watchlist so price/change% reflects freshly loaded data
+        if (typeof WatchlistUI !== 'undefined') WatchlistUI.renderAll();
         showToast('✅', `Loaded ${allStocks.length} stocks`, 'success');
       })
       .catch(err => {
@@ -1124,19 +1126,68 @@
       // applyVolScaleMode() internally calls applyVolHighlights() at the end
       applyVolScaleMode();
 
-      // Update toolbar
-      const last = candles[candles.length - 1];
-      const prev = candles[candles.length - 2];
+      // Update toolbar with live chart data
+      const last   = candles[candles.length - 1];
+      const prev   = candles[candles.length - 2];
       const change = prev ? ((last.close - prev.close) / prev.close * 100) : 0;
-      const sign = change >= 0 ? '+' : '';
+      const sign   = change >= 0 ? '+' : '';
 
       chartSymName.textContent = symbol;
       chartPrice.textContent = `₹${last.close.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
       chartChange.textContent = `${sign}${change.toFixed(2)}%`;
+
       chartChange.className = change >= 0 ? 'up' : 'down';
+
+      // ── Patch in-memory allStocks with live price from chart data ──────
+      // Price: always update — last close is accurate regardless of candle interval.
+      // change_pct: ONLY update when viewing daily (1d) candles.
+      //   On 1W or 1M candles, `change` is week/month-over-prior, which would
+      //   corrupt the daily % shown in the screener and watchlist.
+      const livePrice  = parseFloat(last.close.toFixed(2));
+      const stockEntry = allStocks.find(s => s.symbol === symbol);
+      if (stockEntry) {
+        stockEntry.price = livePrice;
+
+        // Only sync daily change% when the chart is in daily mode
+        const isDailyInterval = (currentInterval === '1d');
+        const liveChange = isDailyInterval ? parseFloat(change.toFixed(2)) : stockEntry.change_pct;
+
+        if (isDailyInterval) {
+          stockEntry.change_pct = liveChange;
+        }
+
+        // Update matching screener row DOM
+        const activeRow = document.querySelector(`.stock-row[data-sym="${symbol}"]`);
+        if (activeRow) {
+          const priceCell = activeRow.querySelector('.price-cell');
+          const chgCell   = activeRow.querySelector('.chg-pill');
+          if (priceCell) priceCell.textContent = `₹${livePrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+          if (chgCell && isDailyInterval) {
+            const pill  = liveChange > 0 ? 'up' : liveChange < 0 ? 'down' : 'flat';
+            const arrow = liveChange > 0 ? '▲' : liveChange < 0 ? '▼' : '●';
+            chgCell.className   = `chg-pill ${pill}`;
+            chgCell.textContent = `${arrow} ${liveChange > 0 ? '+' : ''}${liveChange.toFixed(2)}%`;
+          }
+        }
+
+        // Update watchlist row DOM for this symbol
+        document.querySelectorAll(`.wl-symbol-row[data-sym="${symbol}"]`).forEach(row => {
+          const priceEl = row.querySelector('.wl-sym-price');
+          const chgEl   = row.querySelector('.wl-sym-chg');
+          if (priceEl) priceEl.textContent = `₹${livePrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+          if (chgEl && isDailyInterval) {
+            const cls   = liveChange > 0 ? 'up' : liveChange < 0 ? 'down' : 'flat';
+            const arrow = liveChange > 0 ? '▲' : liveChange < 0 ? '▼' : '●';
+            chgEl.className   = `wl-sym-chg ${cls}`;
+            chgEl.textContent = `${arrow} ${liveChange > 0 ? '+' : ''}${liveChange.toFixed(2)}%`;
+          }
+        });
+      }
+
 
       // Document title
       document.title = `${symbol} ₹${last.close.toFixed(2)} — NSE Dashboard`;
+
 
       chartLoading.classList.remove('visible');
     } catch (err) {
@@ -1529,7 +1580,9 @@
     }
     refreshModal.classList.remove('visible');
     document.body.style.overflow = '';
-    finishRefresh(false);
+    // Only re-enable the button — do NOT mark as failed when user manually closes
+    refreshBtn.disabled = false;
+    refreshBtn.classList.remove('spinning');
   }
 
   function appendLog(line, cls) {
@@ -2323,26 +2376,143 @@
   function initTabs() {
     const screenerPanel = $('screener-panel');
     const watchlistPanel = $('watchlist-panel');
-    const tabs = document.querySelectorAll('.sidebar-tab');
+    const deepdivePanel = $('deepdive-panel');
+    const chartContent = document.querySelector('#chart-panel > #chart-toolbar') ? null : null; // handled via child visibility
 
-    tabs.forEach(tab => {
-      tab.addEventListener('click', () => {
-        tabs.forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
+    // Elements in the RIGHT panel that belong to chart mode vs deepdive mode
+    const chartToolbar       = $('chart-toolbar');
+    const indicatorBar       = $('indicator-bar');
+    const chartAreaWrapper   = $('chart-area-wrapper');
+    const deepdiveContent    = $('deepdive-content');
 
-        const target = tab.dataset.tab;
-        if (target === 'screener') {
-          screenerPanel.style.display = 'flex';
-          watchlistPanel.style.display = 'none';
-          // Refresh star states in case symbols were added/removed via watchlist tab
-          _refreshAllStarBtns();
-        } else {
-          screenerPanel.style.display = 'none';
-          watchlistPanel.style.display = 'flex';
-          WatchlistUI.renderAll();
-        }
-      });
+    // Wire up nav-rail buttons (primary navigation)
+    const navBtns = document.querySelectorAll('#nav-rail .nav-rail-btn[data-tab]');
+
+    function switchTab(targetTab) {
+      // Update nav rail active state
+      navBtns.forEach(b => b.classList.toggle('active', b.dataset.tab === targetTab));
+
+      if (targetTab === 'screener') {
+        screenerPanel.style.display = 'flex';
+        watchlistPanel.style.display = 'none';
+        deepdivePanel.style.display = 'none';
+        // Show chart, hide deepdive content area
+        if (chartToolbar)     chartToolbar.style.display = '';
+        if (indicatorBar)     indicatorBar.style.display = '';
+        if (chartAreaWrapper) chartAreaWrapper.style.display = '';
+        if (deepdiveContent)  deepdiveContent.style.display = 'none';
+        // Refresh star states in case symbols were added/removed via watchlist tab
+        _refreshAllStarBtns();
+      } else if (targetTab === 'watchlist') {
+        screenerPanel.style.display = 'none';
+        watchlistPanel.style.display = 'flex';
+        deepdivePanel.style.display = 'none';
+        // Show chart, hide deepdive content area
+        if (chartToolbar)     chartToolbar.style.display = '';
+        if (indicatorBar)     indicatorBar.style.display = '';
+        if (chartAreaWrapper) chartAreaWrapper.style.display = '';
+        if (deepdiveContent)  deepdiveContent.style.display = 'none';
+        // Always re-render so prices/changes are up to date
+        WatchlistUI.renderAll();
+      } else if (targetTab === 'deepdive') {
+        screenerPanel.style.display = 'none';
+        watchlistPanel.style.display = 'none';
+        deepdivePanel.style.display = 'flex';
+        // Hide chart elements, show deepdive content area
+        if (chartToolbar)     chartToolbar.style.display = 'none';
+        if (indicatorBar)     indicatorBar.style.display = 'none';
+        if (chartAreaWrapper) chartAreaWrapper.style.display = 'none';
+        if (deepdiveContent)  deepdiveContent.style.display = 'flex';
+      }
+    }
+
+    navBtns.forEach(btn => {
+      btn.addEventListener('click', () => switchTab(btn.dataset.tab));
     });
+
+    // Also keep legacy sidebar tabs working if ever visible
+    document.querySelectorAll('.sidebar-tab').forEach(tab => {
+      tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+    });
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════
+     STOCK DEEPDIVE
+  ═══════════════════════════════════════════════════════════════════ */
+  function initDeepDive() {
+    const tickerInput   = $('dd-ticker-input');
+    const searchBtn     = $('dd-search-btn');
+    const ddEmpty       = $('dd-empty');
+    const ddEmptyMsg    = $('dd-empty-msg');
+    const ddContent     = $('deepdive-content');
+    const ddIframeWrap  = $('dd-iframe-wrap');
+    const ddIframe      = $('dd-iframe');
+    const ddErrorState  = $('dd-error-state');
+    const ddContentSym  = $('dd-content-sym');
+    const ddBackBtn     = $('dd-back-btn');
+
+    function showIdle() {
+      // Right panel: hide completely
+      ddIframeWrap.style.display  = 'none';
+      ddIframe.src                = '';
+      ddErrorState.style.display  = 'none';
+      ddContent.style.display     = 'none';
+      // Left panel: show empty state
+      ddEmpty.style.display       = 'flex';
+    }
+
+    function loadDeepDive(ticker) {
+      const sym = ticker.trim().toUpperCase();
+      if (!sym) return;
+
+      tickerInput.value = sym;
+      ddContentSym.textContent = sym;
+
+      // Show right panel content area
+      ddContent.style.display = 'flex';
+
+      // Hide left panel idle state
+      ddEmpty.style.display = 'none';
+
+      const url = `/stock_db/${sym}_summary.html`;
+
+      // HEAD-check file existence
+      fetch(url, { method: 'HEAD' })
+        .then(res => {
+          if (res.ok) {
+            ddErrorState.style.display  = 'none';
+            ddIframeWrap.style.display  = 'block';
+            ddIframe.src                = url;
+          } else {
+            ddIframeWrap.style.display  = 'none';
+            ddIframe.src                = '';
+            ddErrorState.style.display  = 'flex';
+          }
+        })
+        .catch(() => {
+          ddIframeWrap.style.display  = 'none';
+          ddIframe.src                = '';
+          ddErrorState.style.display  = 'flex';
+        });
+    }
+
+    // Search button click
+    searchBtn.addEventListener('click', () => loadDeepDive(tickerInput.value));
+
+    // Enter key in input
+    tickerInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') loadDeepDive(tickerInput.value);
+    });
+
+    // Back button — return to idle
+    ddBackBtn.addEventListener('click', () => {
+      showIdle();
+      tickerInput.value = '';
+      tickerInput.focus();
+    });
+
+    // Initial state
+    showIdle();
   }
 
   /* ═══════════════════════════════════════════════════════════════════
@@ -2373,6 +2543,7 @@
     initIndicatorBar();          // indicator toggles (after initCharts)
     initScreenerStarBtn();  // register once — never accumulates
     initTabs();
+    initDeepDive();
     WatchlistUI.init();
   }
 
