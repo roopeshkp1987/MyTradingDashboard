@@ -1,0 +1,41 @@
+name: Run and Commit Chartink Scan History
+
+on:
+  schedule:
+    # Runs at 18:00 UTC (11:30 PM IST), Monday through Friday
+    - cron: '0 18 * * 1-5'
+  workflow_dispatch: # Allows manual trigger from the GitHub Actions tab
+
+jobs:
+  run-and-commit:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write # Needed to push the committed file back to the repository
+
+    steps:
+    - name: Checkout repository code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests beautifulsoup4 openpyxl yfinance pandas
+
+    - name: Run Scan Script
+      run: |
+        python scripts/chartink_scan_history.py --days 20 --out data/chartink_scan_counts.xlsx
+
+    - name: Commit and Push updated Excel spreadsheet
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git add data/chartink_scan_counts.xlsx
+        git commit -m "Auto-update scan history: $(date -u +'%Y-%m-%d %H:%M:%S UTC')" || echo "No changes to commit"
+        git push
