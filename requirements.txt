@@ -3,3 +3,6 @@ beautifulsoup4
 openpyxl
 yfinance
 pandas
+curl_cffi
+selenium
+numpy
