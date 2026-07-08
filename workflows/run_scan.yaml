@@ -1,0 +1,44 @@
+name: Run Chartink Scan History
+
+on:
+  # 1. Schedule to run automatically at 18:00 UTC (11:30 PM IST) on weekdays (Mon-Fri)
+  schedule:
+    - cron: '0 18 * * 1-5'
+  
+  # 2. Allows you to run this workflow manually from the GitHub "Actions" tab
+  workflow_dispatch:
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+
+    steps:
+    # Step 1: Check out the repository
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    # Step 2: Set up Python environment
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-size: '3.10'
+        cache: 'pip' # Caches dependencies for faster subsequent runs
+
+    # Step 3: Install required dependencies
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests beautifulsoup4 openpyxl yfinance pandas
+
+    # Step 4: Run the python script
+    - name: Run Scan Script
+      run: |
+        python scripts/chartink_scan_history.py --days 20 --out data/chartink_scan_counts.xlsx
+
+    # Step 5: Upload the generated Excel file as a GitHub Artifact
+    - name: Upload Excel Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: chartink_scan_counts
+        path: chartink_scan_counts.xlsx
+        retention-days: 30 # Kept for 30 days before automatic deletion
