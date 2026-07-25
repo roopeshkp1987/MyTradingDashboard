@@ -322,13 +322,8 @@ def write_result(new_entry, output_path):
 # ---------------- Main ----------------
 
 def main():
-    SCRIPT_DIR = Path(__file__).parent.resolve()
-    APP_DIR    = SCRIPT_DIR.parent
-    ROOT_DIR   = APP_DIR.parent
-    OUTPUT_DIR = APP_DIR / "data"
-    OUTPUT_FILE = OUTPUT_DIR / "nse_breadth_data.xlsx"
     parser = argparse.ArgumentParser(description="NSE market breadth scanner (Chartink-powered)")
-    parser.add_argument("--output", type=str, default=OUTPUT_FILE, help="Output Excel filename")
+    parser.add_argument("--output", type=str, default="nse_breadth_data.xlsx", help="Output Excel filename")
     parser.add_argument("--delay", type=float, default=1.5, help="Seconds to wait between chartink scan calls")
     args = parser.parse_args()
 
