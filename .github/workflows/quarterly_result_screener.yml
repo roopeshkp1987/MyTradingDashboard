@@ -2,7 +2,7 @@ name: Fetch and Commit Quarterly Result Screener Data
 on:
   schedule:
     # Runs at 13:00 UTC (6:30 PM IST), Monday through Sunday
-    - cron: '0 13 * * 1-7'
+    - cron: '0 13 * * *'
   workflow_dispatch: # Allows manual trigger from the GitHub Actions tab
 jobs:
   run-and-commit:
