@@ -6536,5 +6536,33 @@
     "quarter": "Jun 2026",
     "expected_quarter": "Jun 2026",
     "stale": false
+  },
+  {
+    "Ticker": "BIRLACABLE",
+    "Company": "Birla Cable Limited",
+    "Date": "2026-08-02",
+    "market_cap_cr": 611.0,
+    "pe_ratio": 36.6,
+    "sales_yoy_pct": 37.18,
+    "sales_qoq_pct": 4.39,
+    "profit_yoy_pct": 1000.0,
+    "profit_qoq_pct": 175.0,
+    "quarter": "Mar 2026",
+    "expected_quarter": "Jun 2026",
+    "stale": true
+  },
+  {
+    "Ticker": "PERSISTENT",
+    "Company": "Persistent Systems Limited",
+    "Date": "2026-08-02",
+    "market_cap_cr": 87535.0,
+    "pe_ratio": 45.4,
+    "sales_yoy_pct": 25.11,
+    "sales_qoq_pct": 7.36,
+    "profit_yoy_pct": 33.59,
+    "profit_qoq_pct": 20.5,
+    "quarter": "Mar 2026",
+    "expected_quarter": "Jun 2026",
+    "stale": true
   }
 ]
