@@ -7068,5 +7068,47 @@
     "quarter": "Mar 2026",
     "expected_quarter": "Jun 2026",
     "stale": true
+  },
+  {
+    "Ticker": "KNACK",
+    "Company": "Knack Packaging Limited",
+    "Date": "2026-08-09",
+    "market_cap_cr": 2549.0,
+    "pe_ratio": 27.3,
+    "sales_yoy_pct": null,
+    "sales_qoq_pct": null,
+    "profit_yoy_pct": null,
+    "profit_qoq_pct": null,
+    "quarter": null,
+    "expected_quarter": "Jun 2026",
+    "stale": null
+  },
+  {
+    "Ticker": "QPOWER",
+    "Company": "Quality Power Electrical Equipments Limited",
+    "Date": "2026-08-09",
+    "market_cap_cr": 8705.0,
+    "pe_ratio": 71.7,
+    "sales_yoy_pct": 160.19,
+    "sales_qoq_pct": -1.06,
+    "profit_yoy_pct": 70.0,
+    "profit_qoq_pct": -19.05,
+    "quarter": "Mar 2026",
+    "expected_quarter": "Jun 2026",
+    "stale": true
+  },
+  {
+    "Ticker": "SKYGOLD",
+    "Company": "SKY GOLD AND DIAMONDS LIMITED",
+    "Date": "2026-08-09",
+    "market_cap_cr": 11142.0,
+    "pe_ratio": 40.5,
+    "sales_yoy_pct": 80.72,
+    "sales_qoq_pct": 8.14,
+    "profit_yoy_pct": 139.47,
+    "profit_qoq_pct": 12.35,
+    "quarter": "Mar 2026",
+    "expected_quarter": "Jun 2026",
+    "stale": true
   }
 ]
