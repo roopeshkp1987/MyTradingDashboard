@@ -8636,5 +8636,19 @@
     "quarter": "Mar 2026",
     "expected_quarter": "Jun 2026",
     "stale": true
+  },
+  {
+    "Ticker": "INDOMIM",
+    "Company": "INDO-MIM Limited",
+    "Date": "2026-08-17",
+    "market_cap_cr": 42832.0,
+    "pe_ratio": 72.9,
+    "sales_yoy_pct": null,
+    "sales_qoq_pct": null,
+    "profit_yoy_pct": null,
+    "profit_qoq_pct": null,
+    "quarter": null,
+    "expected_quarter": "Jun 2026",
+    "stale": null
   }
 ]
