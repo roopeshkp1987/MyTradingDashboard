@@ -14164,5 +14164,41 @@
     "screener_url": "https://www.screener.in/company/SRPL/",
     "fetched_at": "2026-08-17T13:35:41",
     "error": null
+  },
+  {
+    "Ticker": "ANNAPURNA",
+    "Company": "Annapurna Swadisht Limited",
+    "Date": "2026-08-18",
+    "Purpose": "Financial Results",
+    "market_cap_cr": 344.0,
+    "pe_ratio": 11.3,
+    "sales_yoy_pct": 102.24,
+    "sales_qoq_pct": 8.4,
+    "profit_yoy_pct": 128.57,
+    "profit_qoq_pct": 6.67,
+    "quarter": "Mar 2026",
+    "expected_quarter": "Jun 2026",
+    "stale": true,
+    "screener_url": "https://www.screener.in/company/ANNAPURNA/consolidated/",
+    "fetched_at": "2026-08-18T13:38:59",
+    "error": null
+  },
+  {
+    "Ticker": "BAGFILMS",
+    "Company": "B.A.G Films and Media Limited",
+    "Date": "2026-08-18",
+    "Purpose": "Financial Results/Other business matters",
+    "market_cap_cr": 97.4,
+    "pe_ratio": 20.7,
+    "sales_yoy_pct": 22.62,
+    "sales_qoq_pct": -10.11,
+    "profit_yoy_pct": 58.67,
+    "profit_qoq_pct": 52.56,
+    "quarter": "Jun 2026",
+    "expected_quarter": "Jun 2026",
+    "stale": false,
+    "screener_url": "https://www.screener.in/company/BAGFILMS/consolidated/",
+    "fetched_at": "2026-08-18T13:39:02",
+    "error": null
   }
 ]
