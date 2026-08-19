@@ -14200,5 +14200,41 @@
     "screener_url": "https://www.screener.in/company/BAGFILMS/consolidated/",
     "fetched_at": "2026-08-18T13:39:02",
     "error": null
+  },
+  {
+    "Ticker": "LCL",
+    "Company": "Lohia Corp Limited",
+    "Date": "2026-08-19",
+    "Purpose": "Financial Results",
+    "market_cap_cr": 5921.0,
+    "pe_ratio": 29.9,
+    "sales_yoy_pct": null,
+    "sales_qoq_pct": null,
+    "profit_yoy_pct": null,
+    "profit_qoq_pct": null,
+    "quarter": null,
+    "expected_quarter": "Jun 2026",
+    "stale": null,
+    "screener_url": "https://www.screener.in/company/LCL/consolidated/",
+    "fetched_at": "2026-08-19T13:40:22",
+    "error": "partial_or_empty_extraction on https://www.screener.in/company/LCL/consolidated/ -- quarterly_header_columns_missing: rows for Sales/Net Profit were found, but the header row has no quarter-label columns (e.g. 'Jun 2026') to attach values to. This specific pattern (structure/labels present, numeric values blank) has been confirmed to be screener.in serving a stripped-down skeleton page (still HTTP 200) to requests that look bot-like, while an identical URL fetched normally returns full data -- not a universal move to client-side rendering. This scraper now warms up the session with a homepage visit and sends fuller browser-like headers before hitting company pages, which should resolve most cases. If it still happens: try SCREENER_COOKIE (a logged-in session cookie), add more delay between requests, or as a last resort a JS-capable fetch (Playwright/Selenium). Inspect the dumped HTML if --debug-dir was set, or fetch the URL manually to compare."
+  },
+  {
+    "Ticker": "XTRANET",
+    "Company": "Xtranet Technologies Limited",
+    "Date": "2026-08-19",
+    "Purpose": "Financial Results",
+    "market_cap_cr": 886.0,
+    "pe_ratio": 22.0,
+    "sales_yoy_pct": null,
+    "sales_qoq_pct": null,
+    "profit_yoy_pct": null,
+    "profit_qoq_pct": null,
+    "quarter": null,
+    "expected_quarter": "Jun 2026",
+    "stale": null,
+    "screener_url": "https://www.screener.in/company/XTRANET/consolidated/",
+    "fetched_at": "2026-08-19T13:40:25",
+    "error": "partial_or_empty_extraction on https://www.screener.in/company/XTRANET/consolidated/ -- quarterly_header_columns_missing: rows for Sales/Net Profit were found, but the header row has no quarter-label columns (e.g. 'Jun 2026') to attach values to. This specific pattern (structure/labels present, numeric values blank) has been confirmed to be screener.in serving a stripped-down skeleton page (still HTTP 200) to requests that look bot-like, while an identical URL fetched normally returns full data -- not a universal move to client-side rendering. This scraper now warms up the session with a homepage visit and sends fuller browser-like headers before hitting company pages, which should resolve most cases. If it still happens: try SCREENER_COOKIE (a logged-in session cookie), add more delay between requests, or as a last resort a JS-capable fetch (Playwright/Selenium). Inspect the dumped HTML if --debug-dir was set, or fetch the URL manually to compare."
   }
 ]
