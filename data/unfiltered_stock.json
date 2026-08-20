@@ -14236,5 +14236,41 @@
     "screener_url": "https://www.screener.in/company/XTRANET/consolidated/",
     "fetched_at": "2026-08-19T13:40:25",
     "error": "partial_or_empty_extraction on https://www.screener.in/company/XTRANET/consolidated/ -- quarterly_header_columns_missing: rows for Sales/Net Profit were found, but the header row has no quarter-label columns (e.g. 'Jun 2026') to attach values to. This specific pattern (structure/labels present, numeric values blank) has been confirmed to be screener.in serving a stripped-down skeleton page (still HTTP 200) to requests that look bot-like, while an identical URL fetched normally returns full data -- not a universal move to client-side rendering. This scraper now warms up the session with a homepage visit and sends fuller browser-like headers before hitting company pages, which should resolve most cases. If it still happens: try SCREENER_COOKIE (a logged-in session cookie), add more delay between requests, or as a last resort a JS-capable fetch (Playwright/Selenium). Inspect the dumped HTML if --debug-dir was set, or fetch the URL manually to compare."
+  },
+  {
+    "Ticker": "MANIPALHOS",
+    "Company": "Manipal Health Enterprises Limited",
+    "Date": "2026-08-20",
+    "Purpose": "Financial Results",
+    "market_cap_cr": 95311.0,
+    "pe_ratio": 105.0,
+    "sales_yoy_pct": null,
+    "sales_qoq_pct": null,
+    "profit_yoy_pct": null,
+    "profit_qoq_pct": null,
+    "quarter": "Sep 2025",
+    "expected_quarter": "Jun 2026",
+    "stale": true,
+    "screener_url": "https://www.screener.in/company/MANIPALHOS/consolidated/",
+    "fetched_at": "2026-08-20T13:42:03",
+    "error": null
+  },
+  {
+    "Ticker": "SUPREMEENG",
+    "Company": "Supreme Engineering Limited",
+    "Date": "2026-08-20",
+    "Purpose": "Financial Results/Fund Raising",
+    "market_cap_cr": 62.2,
+    "pe_ratio": null,
+    "sales_yoy_pct": 45.15,
+    "sales_qoq_pct": 33.85,
+    "profit_yoy_pct": 111.86,
+    "profit_qoq_pct": 110.77,
+    "quarter": "Dec 2025",
+    "expected_quarter": "Jun 2026",
+    "stale": true,
+    "screener_url": "https://www.screener.in/company/SUPREMEENG/",
+    "fetched_at": "2026-08-20T13:42:07",
+    "error": null
   }
 ]

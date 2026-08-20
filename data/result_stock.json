@@ -8678,5 +8678,19 @@
     "quarter": null,
     "expected_quarter": "Jun 2026",
     "stale": null
+  },
+  {
+    "Ticker": "MANIPALHOS",
+    "Company": "Manipal Health Enterprises Limited",
+    "Date": "2026-08-20",
+    "market_cap_cr": 95311.0,
+    "pe_ratio": 105.0,
+    "sales_yoy_pct": null,
+    "sales_qoq_pct": null,
+    "profit_yoy_pct": null,
+    "profit_qoq_pct": null,
+    "quarter": "Sep 2025",
+    "expected_quarter": "Jun 2026",
+    "stale": true
   }
 ]
