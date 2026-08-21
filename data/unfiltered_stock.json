@@ -14272,5 +14272,41 @@
     "screener_url": "https://www.screener.in/company/SUPREMEENG/",
     "fetched_at": "2026-08-20T13:42:07",
     "error": null
+  },
+  {
+    "Ticker": "FLEXITUFF",
+    "Company": "Flexituff Ventures International Limited",
+    "Date": "2026-08-21",
+    "Purpose": "Financial Results",
+    "market_cap_cr": 8.93,
+    "pe_ratio": null,
+    "sales_yoy_pct": -100.0,
+    "sales_qoq_pct": null,
+    "profit_yoy_pct": -475.0,
+    "profit_qoq_pct": -137.93,
+    "quarter": "Mar 2026",
+    "expected_quarter": "Jun 2026",
+    "stale": true,
+    "screener_url": "https://www.screener.in/company/FLEXITUFF/consolidated/",
+    "fetched_at": "2026-08-21T13:41:07",
+    "error": null
+  },
+  {
+    "Ticker": "INNOVACAP",
+    "Company": "Innova Captab Limited",
+    "Date": "2026-08-21",
+    "Purpose": "Financial Results",
+    "market_cap_cr": 6238.0,
+    "pe_ratio": 40.5,
+    "sales_yoy_pct": 33.81,
+    "sales_qoq_pct": 5.13,
+    "profit_yoy_pct": 41.94,
+    "profit_qoq_pct": 15.79,
+    "quarter": "Jun 2026",
+    "expected_quarter": "Jun 2026",
+    "stale": false,
+    "screener_url": "https://www.screener.in/company/INNOVACAP/consolidated/",
+    "fetched_at": "2026-08-21T13:41:10",
+    "error": null
   }
 ]
